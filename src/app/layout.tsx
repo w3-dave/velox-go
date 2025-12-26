@@ -39,10 +39,8 @@ export default function RootLayout({
           src="/widget/nav.js"
           strategy="afterInteractive"
         />
-        {/* Main content with left padding for widget */}
-        <div className="pl-16">
-          {children}
-        </div>
+        {/* Main content - padding managed by widget */}
+        {children}
       </body>
     </html>
   );

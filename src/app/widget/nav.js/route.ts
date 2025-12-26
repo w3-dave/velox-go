@@ -57,6 +57,11 @@ const widgetScript = `
       height: 100vh;
       z-index: 99999;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      transition: transform 0.2s ease;
+    }
+
+    .velox-nav-widget.collapsed {
+      transform: translateX(\${config.position === 'left' ? '-64px' : '64px'});
     }
 
     .velox-nav-toggle {
@@ -95,7 +100,6 @@ const widgetScript = `
     }
 
     .velox-nav-sidebar.collapsed {
-      transform: translateX(\${config.position === 'left' ? '-100%' : '100%'});
       opacity: 0;
       pointer-events: none;
     }
@@ -348,14 +352,52 @@ const widgetScript = `
   const sidebar = widget.querySelector('.velox-nav-sidebar');
   const toggleBtn = widget.querySelector('#velox-nav-toggle');
 
-  toggleBtn.addEventListener('click', () => {
-    isCollapsed = !isCollapsed;
+  function updateCollapsedState() {
     sidebar.classList.toggle('collapsed', isCollapsed);
+    widget.classList.toggle('collapsed', isCollapsed);
     toggleBtn.querySelector('svg path').setAttribute('d',
       isCollapsed
         ? (config.position === 'left' ? 'M4 2 L8 6 L4 10' : 'M8 2 L4 6 L8 10')
         : (config.position === 'left' ? 'M8 2 L4 6 L8 10' : 'M4 2 L8 6 L4 10')
     );
+
+    // Update body padding for page content
+    if (config.position === 'left') {
+      document.body.style.paddingLeft = isCollapsed ? '0' : '64px';
+    } else {
+      document.body.style.paddingRight = isCollapsed ? '0' : '64px';
+    }
+
+    // Store preference
+    localStorage.setItem('velox-nav-collapsed', isCollapsed ? 'true' : 'false');
+  }
+
+  // Load saved preference
+  const savedCollapsed = localStorage.getItem('velox-nav-collapsed');
+  if (savedCollapsed !== null) {
+    isCollapsed = savedCollapsed === 'true';
+  }
+
+  // Set initial body padding
+  if (config.position === 'left') {
+    document.body.style.paddingLeft = isCollapsed ? '0' : '64px';
+  } else {
+    document.body.style.paddingRight = isCollapsed ? '0' : '64px';
+  }
+  document.body.style.transition = 'padding 0.2s ease';
+
+  // Apply initial state
+  if (isCollapsed) {
+    sidebar.classList.add('collapsed');
+    widget.classList.add('collapsed');
+    toggleBtn.querySelector('svg path').setAttribute('d',
+      config.position === 'left' ? 'M4 2 L8 6 L4 10' : 'M8 2 L4 6 L8 10'
+    );
+  }
+
+  toggleBtn.addEventListener('click', () => {
+    isCollapsed = !isCollapsed;
+    updateCollapsedState();
   });
 
   // Theme toggle
