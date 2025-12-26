@@ -4,11 +4,10 @@ Centralized authentication, billing, and navigation service for all Velox Labs a
 
 ## Deployment
 
-**Production URL**: https://velox-go-q6j3v.ondigitalocean.app
-**Planned Domain**: https://go.veloxlabs.app
+**Production URL**: https://go.veloxlabs.app
 
 Related Services:
-- **velox-www**: https://velox-www-mke95.ondigitalocean.app
+- **velox-www**: https://www.veloxlabs.com
 
 ## Tech Stack
 
