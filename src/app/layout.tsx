@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
+import { Providers } from "@/components/providers";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -40,7 +41,7 @@ export default function RootLayout({
           strategy="afterInteractive"
         />
         {/* Main content - padding managed by widget */}
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
