@@ -10,13 +10,40 @@ import { Suspense, useState } from "react";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  // Support both 'redirect' (from velox apps) and 'callbackUrl' (NextAuth standard)
+  const callbackUrl = searchParams.get("redirect") || searchParams.get("callbackUrl") || "/dashboard";
   const error = searchParams.get("error");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
+
+  const isExternalRedirect = callbackUrl.startsWith("http") && !callbackUrl.includes(window.location.host);
+
+  const redirectWithSsoToken = async (targetUrl: string) => {
+    // For external redirects, get an SSO token first
+    if (isExternalRedirect) {
+      try {
+        const tokenRes = await fetch("/api/sso/token", { method: "POST" });
+        if (tokenRes.ok) {
+          const tokenData = await tokenRes.json();
+          const url = new URL(targetUrl);
+          url.pathname = "/api/auth/callback";
+          url.searchParams.set("sso_token", tokenData.token);
+          url.searchParams.set("sso_sig", tokenData.signature);
+          url.searchParams.set("sso_user", tokenData.userId);
+          url.searchParams.set("sso_exp", tokenData.expiresAt);
+          url.searchParams.set("redirect", new URL(targetUrl).pathname || "/");
+          window.location.href = url.toString();
+          return;
+        }
+      } catch (err) {
+        console.error("SSO token error:", err);
+      }
+    }
+    router.push(targetUrl);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +60,7 @@ function LoginForm() {
       if (result?.error) {
         setFormError("Invalid email or password");
       } else {
-        router.push(callbackUrl);
+        await redirectWithSsoToken(callbackUrl);
       }
     } catch {
       setFormError("Something went wrong");
