@@ -216,6 +216,26 @@ const widgetScript = `
       color: #ef4444;
     }
 
+    .velox-nav-login {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #3b82f620;
+      border: none;
+      color: #3b82f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+
+    .velox-nav-login:hover {
+      background: #3b82f630;
+      transform: scale(1.05);
+    }
+
     .velox-nav-username {
       font-size: 10px;
       color: var(--velox-widget-muted, #888);
@@ -282,10 +302,32 @@ const widgetScript = `
         </svg>
       </a>
       <div class="velox-nav-apps" id="velox-nav-apps">
-        <!-- Apps loaded dynamically -->
+        <a href="https://velox-nota-c5iy9.ondigitalocean.app" class="velox-nav-app" style="background: #f59e0b20" title="Velox Nota">
+          📝
+          <span class="velox-nav-tooltip">Velox Nota</span>
+        </a>
+        <a href="#" class="velox-nav-app locked" style="background: #3b82f620" title="Velox Contacts">
+          👥
+          <span class="velox-nav-tooltip">Velox Contacts</span>
+        </a>
+        <a href="#" class="velox-nav-app locked" style="background: #10b98120" title="Velox Inventory">
+          📦
+          <span class="velox-nav-tooltip">Velox Inventory</span>
+        </a>
+        <a href="#" class="velox-nav-app locked" style="background: #8b5cf620" title="Velox Projects">
+          🎯
+          <span class="velox-nav-tooltip">Velox Projects</span>
+        </a>
       </div>
       <div class="velox-nav-user" id="velox-nav-user">
-        <a href="\${VELOX_GO_URL}/login" class="velox-nav-avatar" title="Sign in">?</a>
+        <a href="\${VELOX_GO_URL}/login" class="velox-nav-login" title="Sign in">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+            <polyline points="10 17 15 12 10 7"/>
+            <line x1="15" y1="12" x2="3" y2="12"/>
+          </svg>
+        </a>
+        <span class="velox-nav-username">Sign in</span>
         <button id="velox-nav-theme" class="velox-nav-icon-btn" title="Toggle theme">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
             <path d="M8 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-1 0v-1A.5.5 0 0 1 8 1zm0 11a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-1 0v-1a.5.5 0 0 1 .5-.5zm7-4a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1 0-1h1a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1 0-1h1A.5.5 0 0 1 3 8zm9.354-3.354a.5.5 0 0 1 0 .708l-.708.707a.5.5 0 1 1-.707-.707l.707-.708a.5.5 0 0 1 .708 0zM5.06 11.06a.5.5 0 0 1 0 .708l-.707.707a.5.5 0 1 1-.708-.707l.708-.708a.5.5 0 0 1 .707 0zm7.88.708a.5.5 0 0 1-.708 0l-.707-.708a.5.5 0 0 1 .707-.707l.708.707a.5.5 0 0 1 0 .708zM5.06 4.94a.5.5 0 0 1-.708 0l-.707-.708a.5.5 0 1 1 .708-.707l.707.708a.5.5 0 0 1 0 .707zM8 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/>
@@ -395,8 +437,8 @@ const widgetScript = `
     const appsContainer = document.getElementById('velox-nav-apps');
     const userContainer = document.getElementById('velox-nav-user');
 
-    // Render apps
-    if (data.apps) {
+    // Render apps (only if we have data, otherwise keep defaults)
+    if (data.apps && data.apps.length > 0) {
       const currentHost = window.location.hostname;
 
       appsContainer.innerHTML = data.apps.map(app => {
@@ -416,7 +458,7 @@ const widgetScript = `
       }).join('');
     }
 
-    // Render user (keep theme button)
+    // Render user section
     if (data.user) {
       const initial = (data.user.name?.[0] || data.user.email[0]).toUpperCase();
       const displayName = data.user.name || data.user.email.split('@')[0];
@@ -454,6 +496,27 @@ const widgetScript = `
         setCachedUser(null); // Clear user cache
         window.location.href = \`\${VELOX_GO_URL}/signout?callbackUrl=\${encodeURIComponent(window.location.href)}\`;
       });
+    } else {
+      // Not logged in - show login button
+      userContainer.innerHTML = \`
+        <a href="\${VELOX_GO_URL}/login?callbackUrl=\${encodeURIComponent(window.location.href)}" class="velox-nav-login" title="Sign in">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+            <polyline points="10 17 15 12 10 7"/>
+            <line x1="15" y1="12" x2="3" y2="12"/>
+          </svg>
+        </a>
+        <span class="velox-nav-username">Sign in</span>
+        <button id="velox-nav-theme" class="velox-nav-icon-btn" title="Toggle theme">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-1 0v-1A.5.5 0 0 1 8 1z"/>
+          </svg>
+        </button>
+      \`;
+      // Re-attach theme toggle handler
+      const newThemeBtn = document.getElementById('velox-nav-theme');
+      newThemeBtn.addEventListener('click', toggleTheme);
+      updateThemeIcon();
     }
   }
 
