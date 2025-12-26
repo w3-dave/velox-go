@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { cookies } from "next/headers";
 
 // GET - List all active sessions for the current user
 export async function GET() {
@@ -12,10 +11,9 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get current session token to identify current session
-    const cookieStore = await cookies();
-    const sessionToken = cookieStore.get("authjs.session-token")?.value
-      || cookieStore.get("__Secure-authjs.session-token")?.value;
+    // Get current session token from JWT session
+    // @ts-expect-error - sessionToken added in auth callbacks
+    const currentSessionToken = session.sessionToken as string | undefined;
 
     const sessions = await prisma.session.findMany({
       where: {
@@ -29,7 +27,7 @@ export async function GET() {
     const sessionsWithCurrent = sessions.map((s) => ({
       id: s.id,
       expires: s.expires,
-      isCurrent: s.sessionToken === sessionToken,
+      isCurrent: s.sessionToken === currentSessionToken,
     }));
 
     return NextResponse.json(sessionsWithCurrent);
@@ -51,10 +49,9 @@ export async function DELETE(request: NextRequest) {
     const body = await request.json();
     const { sessionId, revokeAll } = body;
 
-    // Get current session token
-    const cookieStore = await cookies();
-    const currentSessionToken = cookieStore.get("authjs.session-token")?.value
-      || cookieStore.get("__Secure-authjs.session-token")?.value;
+    // Get current session token from JWT session
+    // @ts-expect-error - sessionToken added in auth callbacks
+    const currentSessionToken = session.sessionToken as string | undefined;
 
     if (revokeAll) {
       // Revoke all sessions except current

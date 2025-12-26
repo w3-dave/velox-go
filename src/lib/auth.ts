@@ -3,13 +3,14 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { prisma } from "./prisma";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   trustHost: true,
   session: {
-    strategy: "database",
+    strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   pages: {
@@ -59,9 +60,31 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async session({ session, user }) {
-      if (session.user) {
-        session.user.id = user.id;
+    async jwt({ token, user }) {
+      if (user && user.id) {
+        token.id = user.id;
+
+        // Create a session record for session management
+        const sessionToken = crypto.randomUUID();
+        const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+        await prisma.session.create({
+          data: {
+            sessionToken,
+            userId: user.id,
+            expires,
+          },
+        });
+
+        token.sessionToken = sessionToken;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user && token.id) {
+        session.user.id = token.id as string;
+        // @ts-expect-error - adding sessionToken to session
+        session.sessionToken = token.sessionToken;
       }
       return session;
     },
