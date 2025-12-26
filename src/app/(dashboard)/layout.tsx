@@ -31,16 +31,22 @@ export default async function DashboardLayout({
                 Apps
               </Link>
               <Link
-                href="/account"
+                href="/org"
                 className="text-sm text-muted hover:text-foreground transition-colors"
               >
-                Account
+                Organization
               </Link>
               <Link
                 href="/billing"
                 className="text-sm text-muted hover:text-foreground transition-colors"
               >
                 Billing
+              </Link>
+              <Link
+                href="/account"
+                className="text-sm text-muted hover:text-foreground transition-colors"
+              >
+                Account
               </Link>
             </nav>
 
