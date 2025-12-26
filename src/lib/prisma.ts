@@ -13,11 +13,14 @@ function createPrismaClient() {
     throw new Error("DATABASE_URL is not set");
   }
 
+  // Remove sslmode from URL and configure SSL separately
+  const cleanConnectionString = connectionString.replace(/[?&]sslmode=[^&]+/g, '');
+
   const pool = new pg.Pool({
-    connectionString,
-    ssl: {
+    connectionString: cleanConnectionString,
+    ssl: process.env.NODE_ENV === 'production' ? {
       rejectUnauthorized: false, // Required for Digital Ocean managed databases
-    },
+    } : false,
   });
   const adapter = new PrismaPg(pool);
 
