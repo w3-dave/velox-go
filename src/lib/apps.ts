@@ -11,6 +11,14 @@ export interface VeloxApp {
   monthlyPrice?: number;
 }
 
+// App URLs from environment variables (with production fallbacks)
+const APP_URLS = {
+  nota: process.env.NEXT_PUBLIC_NOTA_URL || "https://nota.veloxlabs.app",
+  contacts: process.env.NEXT_PUBLIC_CONTACTS_URL || "https://contacts.veloxlabs.app",
+  inventory: process.env.NEXT_PUBLIC_INVENTORY_URL || "https://inventory.veloxlabs.app",
+  projects: process.env.NEXT_PUBLIC_PROJECTS_URL || "https://projects.veloxlabs.app",
+};
+
 export const veloxApps: VeloxApp[] = [
   {
     slug: "nota",
@@ -18,7 +26,7 @@ export const veloxApps: VeloxApp[] = [
     tagline: "Beautiful markdown notes",
     icon: "📝",
     color: "#f59e0b",
-    url: "https://nota.veloxlabs.app",
+    url: APP_URLS.nota,
     status: "available",
     free: true, // Free during beta
     stripePriceId: process.env.STRIPE_NOTA_PRICE_ID,
@@ -30,7 +38,7 @@ export const veloxApps: VeloxApp[] = [
     tagline: "Smart contact management",
     icon: "👥",
     color: "#3b82f6",
-    url: "https://contacts.veloxlabs.app",
+    url: APP_URLS.contacts,
     status: "coming-soon",
     monthlyPrice: 2.99,
   },
@@ -40,7 +48,7 @@ export const veloxApps: VeloxApp[] = [
     tagline: "Track everything you own",
     icon: "📦",
     color: "#10b981",
-    url: "https://inventory.veloxlabs.app",
+    url: APP_URLS.inventory,
     status: "coming-soon",
     monthlyPrice: 4.99,
   },
@@ -50,7 +58,7 @@ export const veloxApps: VeloxApp[] = [
     tagline: "Simple project tracking",
     icon: "🎯",
     color: "#8b5cf6",
-    url: "https://projects.veloxlabs.app",
+    url: APP_URLS.projects,
     status: "coming-soon",
     monthlyPrice: 5.99,
   },

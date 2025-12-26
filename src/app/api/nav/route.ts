@@ -3,13 +3,36 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { veloxApps } from "@/lib/apps";
 
-// Allowed origins for CORS (all veloxlabs subdomains)
-const ALLOWED_ORIGINS = [
-  "https://veloxlabs.app",
-  "https://www.veloxlabs.app",
-  "https://go.veloxlabs.app",
-  "https://nota.veloxlabs.app",
-];
+// Build allowed origins from environment variables
+function getAllowedOrigins(): string[] {
+  const origins = new Set<string>();
+
+  // Add configured app URLs
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const wwwUrl = process.env.NEXT_PUBLIC_WWW_URL;
+  const notaUrl = process.env.NEXT_PUBLIC_NOTA_URL;
+
+  if (appUrl) origins.add(appUrl);
+  if (wwwUrl) origins.add(wwwUrl);
+  if (notaUrl) origins.add(notaUrl);
+
+  // Production fallbacks
+  origins.add("https://veloxlabs.app");
+  origins.add("https://www.veloxlabs.app");
+  origins.add("https://go.veloxlabs.app");
+  origins.add("https://nota.veloxlabs.app");
+
+  // Local dev origins
+  if (process.env.NODE_ENV === "development") {
+    origins.add("http://localhost:3000");
+    origins.add("http://localhost:3001");
+    origins.add("http://localhost:3002");
+  }
+
+  return Array.from(origins);
+}
+
+const ALLOWED_ORIGINS = getAllowedOrigins();
 
 function getCorsHeaders(request: NextRequest) {
   const origin = request.headers.get("origin") || "";

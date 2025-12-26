@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 
+// Get URLs from environment variables
+const VELOX_GO_URL = process.env.NEXT_PUBLIC_APP_URL || "https://go.veloxlabs.app";
+const NOTA_URL = process.env.NEXT_PUBLIC_NOTA_URL || "https://nota.veloxlabs.app";
+
 const widgetScript = `
 (function() {
   'use strict';
 
-  const VELOX_GO_URL = 'https://go.veloxlabs.app';
+  const VELOX_GO_URL = '${VELOX_GO_URL}';
+  const NOTA_URL = '${NOTA_URL}';
   const THEME_KEY = 'velox-theme';
   const USER_KEY = 'velox-user';
 
@@ -306,7 +311,7 @@ const widgetScript = `
         </svg>
       </a>
       <div class="velox-nav-apps" id="velox-nav-apps">
-        <a href="https://nota.veloxlabs.app" class="velox-nav-app" style="background: #f59e0b20" title="Velox Nota">
+        <a href="\${NOTA_URL}" class="velox-nav-app" style="background: #f59e0b20" title="Velox Nota">
           📝
           <span class="velox-nav-tooltip">Velox Nota</span>
         </a>
