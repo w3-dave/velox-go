@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
             color: app.color,
             url: app.url,
             status: app.status,
+            free: app.free || false,
           })),
           user: null,
           subscriptions: [],
@@ -73,6 +74,7 @@ export async function GET(request: NextRequest) {
           color: app.color,
           url: app.url,
           status: app.status,
+          free: app.free || false,
         })),
         user: {
           id: session.user.id,

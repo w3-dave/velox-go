@@ -6,6 +6,7 @@ export interface VeloxApp {
   color: string;
   url: string;
   status: "available" | "coming-soon";
+  free?: boolean; // If true, no subscription required
   stripePriceId?: string;
   monthlyPrice?: number;
 }
@@ -19,6 +20,7 @@ export const veloxApps: VeloxApp[] = [
     color: "#f59e0b",
     url: "https://nota.veloxlabs.app",
     status: "available",
+    free: true, // Free during beta
     stripePriceId: process.env.STRIPE_NOTA_PRICE_ID,
     monthlyPrice: 4.99,
   },

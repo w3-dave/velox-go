@@ -486,7 +486,7 @@ const widgetScript = `
       appsContainer.innerHTML = data.apps.map(app => {
         const isActive = currentHost.includes(app.slug);
         const isSubscribed = data.subscriptions?.includes(app.slug);
-        const isLocked = !isSubscribed && app.status === 'available';
+        const isLocked = !isSubscribed && !app.free && app.status === 'available';
 
         return \`
           <a href="\${isLocked ? VELOX_GO_URL + '/billing/checkout/' + app.slug : app.url}"
