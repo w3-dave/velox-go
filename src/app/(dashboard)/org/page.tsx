@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { Skeleton, SkeletonList } from "@/components/ui/skeleton";
 import { useState, useEffect } from "react";
 
 interface Organization {
@@ -291,10 +292,33 @@ export default function OrgPage() {
   if (loading) {
     return (
       <div className="max-w-4xl">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-card rounded w-48" />
-          <div className="h-4 bg-card rounded w-72" />
-          <div className="h-64 bg-card rounded-xl" />
+        <Skeleton className="h-8 w-48 mb-2" />
+        <Skeleton className="h-4 w-72 mb-8" />
+
+        <div className="space-y-8">
+          {/* Org details skeleton */}
+          <div className="bg-card border border-border rounded-xl p-4 sm:p-6">
+            <Skeleton className="h-6 w-40 mb-4" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-10 w-full rounded-lg" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-12" />
+                <Skeleton className="h-10 w-full rounded-lg" />
+              </div>
+            </div>
+          </div>
+
+          {/* Members skeleton */}
+          <div className="bg-card border border-border rounded-xl p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+            <SkeletonList count={3} />
+          </div>
         </div>
       </div>
     );
@@ -350,7 +374,7 @@ export default function OrgPage() {
                 </Button>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="org-name">Name</Label>
                 <Input id="org-name" type="text" value={selectedOrg.name} disabled className="opacity-60" />
@@ -383,17 +407,17 @@ export default function OrgPage() {
 
             <div className="divide-y divide-border">
               {members.map((member) => (
-                <div key={member.id} className="flex items-center justify-between py-4">
+                <div key={member.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-sm font-bold text-accent">
+                    <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-sm font-bold text-accent flex-shrink-0">
                       {member.user.name?.[0]?.toUpperCase() || member.user.email[0].toUpperCase()}
                     </div>
-                    <div>
-                      <p className="font-medium">{member.user.name || "No name"}</p>
-                      <p className="text-sm text-muted">{member.user.email}</p>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{member.user.name || "No name"}</p>
+                      <p className="text-sm text-muted truncate">{member.user.email}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 ml-13 sm:ml-0">
                     {selectedOrg.role === "OWNER" && member.role !== "OWNER" ? (
                       <>
                         <select
@@ -430,7 +454,7 @@ export default function OrgPage() {
           {(selectedOrg.role === "OWNER" || selectedOrg.role === "ADMIN") && (
             <section className="bg-card border border-border rounded-xl p-6">
               <h2 className="text-lg font-semibold mb-4">Invite Team Member</h2>
-              <form onSubmit={handleInvite} className="flex gap-4">
+              <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <div className="flex-1">
                   <Input
                     type="email"
@@ -440,17 +464,19 @@ export default function OrgPage() {
                     required
                   />
                 </div>
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value as "ADMIN" | "MEMBER")}
-                  className="px-4 py-2 rounded-lg bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-                >
-                  <option value="MEMBER">Member</option>
-                  <option value="ADMIN">Admin</option>
-                </select>
-                <Button type="submit" loading={inviting}>
-                  Send Invite
-                </Button>
+                <div className="flex gap-3">
+                  <select
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value as "ADMIN" | "MEMBER")}
+                    className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                  >
+                    <option value="MEMBER">Member</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                  <Button type="submit" loading={inviting}>
+                    Send Invite
+                  </Button>
+                </div>
               </form>
             </section>
           )}
@@ -459,12 +485,12 @@ export default function OrgPage() {
           {selectedOrg.role === "OWNER" && selectedOrg.type === "BUSINESS" && (
             <section className="bg-card border border-error/20 rounded-xl p-6">
               <h2 className="text-lg font-semibold mb-4 text-error">Danger Zone</h2>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <p className="font-medium">Delete Organization</p>
                   <p className="text-sm text-muted">Permanently delete this organization and all its data</p>
                 </div>
-                <Button variant="danger" size="sm" onClick={() => setShowDeleteModal(true)}>
+                <Button variant="danger" size="sm" onClick={() => setShowDeleteModal(true)} className="w-full sm:w-auto">
                   Delete Organization
                 </Button>
               </div>
@@ -475,7 +501,13 @@ export default function OrgPage() {
 
       {orgs.length === 0 && (
         <div className="bg-card border border-border rounded-xl p-8 text-center">
-          <p className="text-muted mb-4">You don&apos;t belong to any organization yet.</p>
+          <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+          <p className="font-medium mb-1">No organizations yet</p>
+          <p className="text-sm text-muted mb-4">Create your first organization to start collaborating with your team.</p>
           <Button>Create Organization</Button>
         </div>
       )}

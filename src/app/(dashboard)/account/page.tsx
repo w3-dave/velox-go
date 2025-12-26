@@ -65,12 +65,84 @@ export default function AccountPage() {
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [revokingSession, setRevokingSession] = useState<string | null>(null);
 
+  // Profile photo state
+  const [imageLoading, setImageLoading] = useState(false);
+  const [userImage, setUserImage] = useState<string | null>(null);
+
   useEffect(() => {
     if (session?.user) {
       setName(session.user.name || "");
       setEmail(session.user.email || "");
+      setUserImage(session.user.image || null);
     }
   }, [session]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate on client side too
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      setMessage({ type: "error", text: "Invalid file type. Allowed: JPEG, PNG, WebP, GIF" });
+      return;
+    }
+
+    if (file.size > 1024 * 1024) {
+      setMessage({ type: "error", text: "File too large. Maximum size is 1MB" });
+      return;
+    }
+
+    setImageLoading(true);
+    setMessage(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const res = await fetch("/api/users/profile/image", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to upload image");
+      }
+
+      setUserImage(data.image);
+      await update({ image: data.image });
+      setMessage({ type: "success", text: "Profile photo updated" });
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to upload image" });
+    } finally {
+      setImageLoading(false);
+    }
+  };
+
+  const handleRemoveImage = async () => {
+    setImageLoading(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch("/api/users/profile/image", {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to remove image");
+      }
+
+      setUserImage(null);
+      await update({ image: null });
+      setMessage({ type: "success", text: "Profile photo removed" });
+    } catch {
+      setMessage({ type: "error", text: "Failed to remove image" });
+    } finally {
+      setImageLoading(false);
+    }
+  };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -257,16 +329,67 @@ export default function AccountPage() {
 
       <div className="space-y-8">
         {/* Profile Section */}
-        <section className="bg-card border border-border rounded-xl p-6">
+        <section className="bg-card border border-border rounded-xl p-4 sm:p-6">
           <h2 className="text-lg font-semibold mb-4">Profile</h2>
           <form onSubmit={handleUpdateProfile} className="space-y-4">
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center text-2xl font-bold text-accent">
-                {session?.user?.name?.[0]?.toUpperCase() || session?.user?.email?.[0]?.toUpperCase() || "?"}
+              <div className="relative group">
+                <input
+                  type="file"
+                  id="avatar-upload"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  disabled={imageLoading}
+                />
+                <label
+                  htmlFor="avatar-upload"
+                  className={`block w-16 h-16 rounded-full overflow-hidden cursor-pointer ${
+                    imageLoading ? "opacity-50" : ""
+                  }`}
+                >
+                  {userImage ? (
+                    <img
+                      src={userImage}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-accent/20 flex items-center justify-center text-2xl font-bold text-accent">
+                      {session?.user?.name?.[0]?.toUpperCase() || session?.user?.email?.[0]?.toUpperCase() || "?"}
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
+                    {imageLoading ? (
+                      <svg className="w-5 h-5 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    )}
+                  </div>
+                </label>
+                {userImage && !imageLoading && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="absolute -top-1 -right-1 w-5 h-5 bg-error rounded-full flex items-center justify-center text-white hover:bg-error/80 transition-colors"
+                    title="Remove photo"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
               <div>
                 <p className="font-medium">{session?.user?.name || "No name set"}</p>
                 <p className="text-sm text-muted">{session?.user?.email}</p>
+                <p className="text-xs text-muted mt-1">Click photo to change</p>
               </div>
             </div>
 
@@ -300,10 +423,10 @@ export default function AccountPage() {
         </section>
 
         {/* Security Section */}
-        <section className="bg-card border border-border rounded-xl p-6">
+        <section className="bg-card border border-border rounded-xl p-4 sm:p-6">
           <h2 className="text-lg font-semibold mb-4">Security</h2>
           <div className="space-y-4">
-            <div className="flex items-center justify-between py-3 border-b border-border">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between py-3 border-b border-border gap-3">
               <div>
                 <p className="font-medium">Password</p>
                 <p className="text-sm text-muted">Change your password</p>
@@ -312,25 +435,26 @@ export default function AccountPage() {
                 variant="secondary"
                 size="sm"
                 onClick={() => setShowPasswordModal(true)}
+                className="w-full sm:w-auto"
               >
                 Update
               </Button>
             </div>
-            <div className="flex items-center justify-between py-3 border-b border-border">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between py-3 border-b border-border gap-3">
               <div>
                 <p className="font-medium">Two-Factor Authentication</p>
                 <p className="text-sm text-muted">Add an extra layer of security</p>
               </div>
-              <Button variant="secondary" size="sm" disabled>
+              <Button variant="secondary" size="sm" disabled className="w-full sm:w-auto">
                 Coming Soon
               </Button>
             </div>
-            <div className="flex items-center justify-between py-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-3">
               <div>
                 <p className="font-medium">Active Sessions</p>
                 <p className="text-sm text-muted">Manage your active sessions</p>
               </div>
-              <Button variant="secondary" size="sm" onClick={openSessionsModal}>
+              <Button variant="secondary" size="sm" onClick={openSessionsModal} className="w-full sm:w-auto">
                 View
               </Button>
             </div>
@@ -338,9 +462,9 @@ export default function AccountPage() {
         </section>
 
         {/* Danger Zone */}
-        <section className="bg-card border border-error/20 rounded-xl p-6">
+        <section className="bg-card border border-error/20 rounded-xl p-4 sm:p-6">
           <h2 className="text-lg font-semibold mb-4 text-error">Danger Zone</h2>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <p className="font-medium">Delete Account</p>
               <p className="text-sm text-muted">Permanently delete your account and all data</p>
@@ -349,6 +473,7 @@ export default function AccountPage() {
               variant="danger"
               size="sm"
               onClick={() => setShowDeleteModal(true)}
+              className="w-full sm:w-auto"
             >
               Delete Account
             </Button>

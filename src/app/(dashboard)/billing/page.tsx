@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Skeleton, SkeletonCard } from "@/components/ui/skeleton";
 import { veloxApps } from "@/lib/apps";
 import { useState, useEffect } from "react";
 
@@ -69,11 +70,24 @@ export default function BillingPage() {
   if (loading) {
     return (
       <div className="max-w-4xl">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-card rounded w-48" />
-          <div className="h-4 bg-card rounded w-72" />
-          <div className="h-64 bg-card rounded-xl" />
-        </div>
+        <Skeleton className="h-8 w-56 mb-2" />
+        <Skeleton className="h-4 w-80 mb-8" />
+
+        <section className="mb-8">
+          <Skeleton className="h-6 w-40 mb-4" />
+          <div className="space-y-4">
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+        </section>
+
+        <section>
+          <Skeleton className="h-6 w-32 mb-4" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+        </section>
       </div>
     );
   }
@@ -91,34 +105,41 @@ export default function BillingPage() {
         <h2 className="text-lg font-semibold mb-4">Active Subscriptions</h2>
         {subscriptions.length === 0 ? (
           <div className="bg-card border border-border rounded-xl p-8 text-center">
-            <p className="text-muted mb-4">You don&apos;t have any active subscriptions.</p>
-            <p className="text-sm text-muted">Subscribe to apps below to get started.</p>
+            <div className="w-16 h-16 rounded-full bg-muted/10 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
+            <p className="font-medium mb-1">No active subscriptions</p>
+            <p className="text-sm text-muted">Subscribe to apps below to unlock their full potential.</p>
           </div>
         ) : (
           <div className="space-y-4">
             {subscriptions.map((sub) => {
               const app = veloxApps.find((a) => a.slug === sub.appSlug);
               return (
-                <div key={sub.id} className="bg-card border border-border rounded-xl p-6 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
-                      style={{ backgroundColor: `${app?.color}20` }}
-                    >
-                      {app?.icon}
+                <div key={sub.id} className="bg-card border border-border rounded-xl p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div
+                        className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl flex-shrink-0"
+                        style={{ backgroundColor: `${app?.color}20` }}
+                      >
+                        {app?.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{app?.name || sub.appSlug}</p>
+                        <p className="text-sm text-muted">
+                          Renews {new Date(sub.currentPeriodEnd).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">{app?.name || sub.appSlug}</p>
-                      <p className="text-sm text-muted">
-                        Renews {new Date(sub.currentPeriodEnd).toLocaleDateString()}
-                      </p>
+                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+                      {getStatusBadge(sub.status, sub.cancelAtPeriodEnd)}
+                      <Button variant="secondary" size="sm" onClick={() => handleManageSubscription(sub.id)}>
+                        Manage
+                      </Button>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    {getStatusBadge(sub.status, sub.cancelAtPeriodEnd)}
-                    <Button variant="secondary" size="sm" onClick={() => handleManageSubscription(sub.id)}>
-                      Manage
-                    </Button>
                   </div>
                 </div>
               );
@@ -160,14 +181,16 @@ export default function BillingPage() {
 
       {/* Billing Portal */}
       <section className="mt-8">
-        <div className="bg-card border border-border rounded-xl p-6 flex items-center justify-between">
-          <div>
-            <p className="font-medium">Billing Portal</p>
-            <p className="text-sm text-muted">Update payment methods, view invoices, and manage billing</p>
+        <div className="bg-card border border-border rounded-xl p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p className="font-medium">Billing Portal</p>
+              <p className="text-sm text-muted">Update payment methods, view invoices, and manage billing</p>
+            </div>
+            <Button variant="secondary" onClick={() => handleManageSubscription("")} className="w-full sm:w-auto">
+              Open Portal
+            </Button>
           </div>
-          <Button variant="secondary" onClick={() => handleManageSubscription("")}>
-            Open Portal
-          </Button>
         </div>
       </section>
     </div>
