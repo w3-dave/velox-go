@@ -37,7 +37,7 @@ export async function POST() {
 
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: membership.org.stripeCustomerId,
-      return_url: `${process.env.NEXTAUTH_URL}/billing`,
+      return_url: `${process.env.NEXTAUTH_URL || "https://go.veloxlabs.app"}/billing`,
     });
 
     return NextResponse.json({ url: portalSession.url });
