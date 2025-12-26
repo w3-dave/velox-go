@@ -2,13 +2,16 @@
 
 Centralized authentication, billing, and navigation service for all Velox Labs apps.
 
-## Deployment
+## URLs
 
-**Production URL**: https://go.veloxlabs.app
+| Environment | URL |
+|-------------|-----|
+| Production | https://go.veloxlabs.app |
+| Local Dev | http://localhost:3002 |
 
 Related Services:
-- **velox-www**: https://www.veloxlabs.app (marketing site)
-- **velox-nota**: https://nota.veloxlabs.app (notes app)
+- **velox-www**: https://www.veloxlabs.app / http://localhost:3000
+- **velox-nota**: https://nota.veloxlabs.app / http://localhost:3001
 
 ## Tech Stack
 
@@ -92,6 +95,19 @@ Validates SSO tokens for sub-apps during authentication callback.
 ### Session Management (`/api/users/sessions`)
 Lists and revokes user sessions across devices.
 
+## Local Development
+
+```bash
+# Start database (from velox root)
+docker-compose up -d
+
+# Push schema
+npm run db:push
+
+# Start dev server on port 3002
+npm run dev -- -p 3002
+```
+
 ## Commands
 
 ```bash
@@ -104,13 +120,32 @@ npm run db:studio    # Open Prisma Studio
 
 ## Environment Variables
 
-Required in `.env.local`:
-- `DATABASE_URL` - PostgreSQL connection string
-- `NEXTAUTH_SECRET` - Generate with `openssl rand -base64 32`
-- `NEXTAUTH_URL` - https://go.veloxlabs.app
-- `GOOGLE_CLIENT_ID/SECRET` - From Google Cloud Console
-- `STRIPE_SECRET_KEY` - From Stripe Dashboard
-- `STRIPE_WEBHOOK_SECRET` - From Stripe webhook settings
+Required in `.env` (local dev) or environment (production):
+
+```bash
+# Database
+DATABASE_URL="postgresql://velox:velox@localhost:5432/velox_go"  # Docker
+
+# NextAuth
+NEXTAUTH_URL="http://localhost:3002"  # or https://go.veloxlabs.app
+NEXTAUTH_SECRET="..."
+
+# OAuth (optional for local dev)
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+
+# Stripe (optional for local dev)
+STRIPE_SECRET_KEY=""
+STRIPE_WEBHOOK_SECRET=""
+
+# App URLs - these control where links point
+NEXT_PUBLIC_APP_URL="http://localhost:3002"      # This app
+NEXT_PUBLIC_NOTA_URL="http://localhost:3001"     # Nota
+NEXT_PUBLIC_WWW_URL="http://localhost:3000"      # Marketing site
+NEXT_PUBLIC_CONTACTS_URL="http://localhost:3003"
+NEXT_PUBLIC_INVENTORY_URL="http://localhost:3004"
+NEXT_PUBLIC_PROJECTS_URL="http://localhost:3005"
+```
 
 ## Database Models
 
