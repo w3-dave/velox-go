@@ -4,7 +4,7 @@ const widgetScript = `
 (function() {
   'use strict';
 
-  const VELOX_GO_URL = '${process.env.NEXTAUTH_URL || "https://go.veloxlabs.app"}';
+  const VELOX_GO_URL = 'https://go.veloxlabs.app';
   const THEME_KEY = 'velox-theme';
   const USER_KEY = 'velox-user';
 
