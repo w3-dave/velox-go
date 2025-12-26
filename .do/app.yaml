@@ -1,0 +1,47 @@
+name: velox-go
+region: lon
+
+services:
+  - name: velox-go
+    github:
+      repo: w3-dave/velox-go
+      branch: main
+      deploy_on_push: true
+    build_command: npm run build
+    run_command: npm start
+    environment_slug: node-js
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    http_port: 3000
+    routes:
+      - path: /
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+        value: "SET_VIA_DASHBOARD"
+      - key: NEXTAUTH_URL
+        scope: RUN_AND_BUILD_TIME
+        value: "${APP_URL}"
+      - key: NEXTAUTH_SECRET
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+        value: "SET_VIA_DASHBOARD"
+      - key: GOOGLE_CLIENT_ID
+        scope: RUN_AND_BUILD_TIME
+        value: "placeholder"
+      - key: GOOGLE_CLIENT_SECRET
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+        value: "placeholder"
+      - key: STRIPE_SECRET_KEY
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+        value: "placeholder"
+      - key: STRIPE_WEBHOOK_SECRET
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+        value: "placeholder"
+      - key: NODE_ENV
+        scope: RUN_AND_BUILD_TIME
+        value: "production"
