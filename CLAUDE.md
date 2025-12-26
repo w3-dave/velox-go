@@ -2,6 +2,14 @@
 
 Centralized authentication, billing, and navigation service for all Velox Labs apps.
 
+## Deployment
+
+**Production URL**: https://velox-go-q6j3v.ondigitalocean.app
+**Planned Domain**: https://go.veloxlabs.app
+
+Related Services:
+- **velox-www**: https://velox-www-mke95.ondigitalocean.app
+
 ## Tech Stack
 
 - **Framework**: Next.js 15 (App Router)
