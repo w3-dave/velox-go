@@ -6,6 +6,7 @@ const widgetScript = `
 
   const VELOX_GO_URL = '${process.env.NEXTAUTH_URL || "https://velox-go-q6j3v.ondigitalocean.app"}';
   const THEME_KEY = 'velox-theme';
+  const USER_KEY = 'velox-user';
 
   // Widget configuration
   const config = {
@@ -320,6 +321,31 @@ const widgetScript = `
   themeBtn.addEventListener('click', toggleTheme);
   updateThemeIcon();
 
+  // User cache helpers
+  function getCachedUser() {
+    try {
+      const cached = localStorage.getItem(USER_KEY);
+      if (cached) {
+        const data = JSON.parse(cached);
+        // Check if cache is still valid (24 hours)
+        if (data.cachedAt && Date.now() - data.cachedAt < 24 * 60 * 60 * 1000) {
+          return data.user;
+        }
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  function setCachedUser(user) {
+    try {
+      if (user) {
+        localStorage.setItem(USER_KEY, JSON.stringify({ user, cachedAt: Date.now() }));
+      } else {
+        localStorage.removeItem(USER_KEY);
+      }
+    } catch (e) {}
+  }
+
   // Fetch nav data
   async function loadNavData() {
     try {
@@ -329,16 +355,39 @@ const widgetScript = `
 
       if (!res.ok) {
         if (res.status === 401) {
-          // Not authenticated - show login prompt
+          // Not authenticated - check cache for cross-domain case
+          const cachedUser = getCachedUser();
+          if (cachedUser) {
+            renderNav({ apps: [], user: cachedUser, subscriptions: [] });
+          }
           return;
         }
         throw new Error('Failed to load nav data');
       }
 
       const data = await res.json();
+
+      // Cache user data for cross-domain access
+      if (data.user) {
+        setCachedUser(data.user);
+      }
+
+      // If API returns no user but we have cache, use cache (cross-domain case)
+      if (!data.user) {
+        const cachedUser = getCachedUser();
+        if (cachedUser) {
+          data.user = cachedUser;
+        }
+      }
+
       renderNav(data);
     } catch (error) {
       console.error('[Velox Nav]', error);
+      // Try to render with cached data on error
+      const cachedUser = getCachedUser();
+      if (cachedUser) {
+        renderNav({ apps: [], user: cachedUser, subscriptions: [] });
+      }
     }
   }
 
@@ -402,6 +451,7 @@ const widgetScript = `
       // Sign out handler
       const signoutBtn = document.getElementById('velox-nav-signout');
       signoutBtn.addEventListener('click', () => {
+        setCachedUser(null); // Clear user cache
         window.location.href = \`\${VELOX_GO_URL}/signout?callbackUrl=\${encodeURIComponent(window.location.href)}\`;
       });
     }
