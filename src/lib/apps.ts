@@ -17,8 +17,7 @@ export const veloxApps: VeloxApp[] = [
     tagline: "Beautiful markdown notes",
     icon: "📝",
     color: "#f59e0b",
-    // TODO: Update to https://nota.veloxlabs.app when domain is configured
-    url: "https://velox-nota-c5iy9.ondigitalocean.app",
+    url: "https://nota.veloxlabs.app",
     status: "available",
     stripePriceId: process.env.STRIPE_NOTA_PRICE_ID,
     monthlyPrice: 4.99,

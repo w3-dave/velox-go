@@ -6,12 +6,46 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { prisma } from "./prisma";
 
+// Use parent domain for cookies in production to enable cross-subdomain SSO
+const cookieDomain = process.env.NODE_ENV === "production" ? ".veloxlabs.app" : undefined;
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   trustHost: true,
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  cookies: {
+    sessionToken: {
+      name: "authjs.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        domain: cookieDomain,
+      },
+    },
+    callbackUrl: {
+      name: "authjs.callback-url",
+      options: {
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        domain: cookieDomain,
+      },
+    },
+    csrfToken: {
+      name: "authjs.csrf-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        domain: cookieDomain,
+      },
+    },
   },
   pages: {
     signIn: "/login",

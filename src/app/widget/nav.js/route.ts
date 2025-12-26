@@ -4,7 +4,7 @@ const widgetScript = `
 (function() {
   'use strict';
 
-  const VELOX_GO_URL = '${process.env.NEXTAUTH_URL || "https://velox-go-q6j3v.ondigitalocean.app"}';
+  const VELOX_GO_URL = '${process.env.NEXTAUTH_URL || "https://go.veloxlabs.app"}';
   const THEME_KEY = 'velox-theme';
   const USER_KEY = 'velox-user';
 
@@ -306,7 +306,7 @@ const widgetScript = `
         </svg>
       </a>
       <div class="velox-nav-apps" id="velox-nav-apps">
-        <a href="https://velox-nota-c5iy9.ondigitalocean.app" class="velox-nav-app" style="background: #f59e0b20" title="Velox Nota">
+        <a href="https://nota.veloxlabs.app" class="velox-nav-app" style="background: #f59e0b20" title="Velox Nota">
           📝
           <span class="velox-nav-tooltip">Velox Nota</span>
         </a>

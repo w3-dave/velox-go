@@ -1,9 +1,33 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { veloxApps } from "@/lib/apps";
 
-export async function GET() {
+// Allowed origins for CORS (all veloxlabs subdomains)
+const ALLOWED_ORIGINS = [
+  "https://veloxlabs.app",
+  "https://www.veloxlabs.app",
+  "https://go.veloxlabs.app",
+  "https://nota.veloxlabs.app",
+  // Keep DO URLs for backwards compatibility during transition
+  "https://velox-go-q6j3v.ondigitalocean.app",
+  "https://velox-nota-c5iy9.ondigitalocean.app",
+  "https://velox-www-mke95.ondigitalocean.app",
+];
+
+function getCorsHeaders(request: NextRequest) {
+  const origin = request.headers.get("origin") || "";
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Credentials": "true",
+  };
+}
+
+export async function GET(request: NextRequest) {
+  const corsHeaders = getCorsHeaders(request);
+
   try {
     const session = await auth();
 
@@ -22,12 +46,7 @@ export async function GET() {
           user: null,
           subscriptions: [],
         },
-        {
-          headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Credentials": "true",
-          },
-        }
+        { headers: corsHeaders }
       );
     }
 
@@ -67,26 +86,24 @@ export async function GET() {
         },
         subscriptions: subscribedApps,
       },
-      {
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Credentials": "true",
-        },
-      }
+      { headers: corsHeaders }
     );
   } catch (error) {
     console.error("Error fetching nav data:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
 
-export async function OPTIONS() {
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get("origin") || "";
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+
   return new NextResponse(null, {
     headers: {
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": allowedOrigin,
       "Access-Control-Allow-Methods": "GET, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
       "Access-Control-Allow-Credentials": "true",
