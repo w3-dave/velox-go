@@ -295,7 +295,7 @@ const widgetScript = `
   widget.className = 'velox-nav-widget';
   widget.innerHTML = \`
     <div class="velox-nav-sidebar \${config.collapsed ? 'collapsed' : ''}">
-      <a href="\${VELOX_GO_URL}/dashboard" class="velox-nav-logo" title="Velox Go">
+      <a href="\${VELOX_GO_URL}/dashboard" class="velox-nav-logo" title="Velox Labs">
         <svg viewBox="0 0 32 32" width="32" height="32">
           <rect width="32" height="32" rx="6" fill="var(--velox-widget-sidebar, #0a0a0a)"/>
           <path d="M8 8 L16 24 L24 8" stroke="#3b82f6" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>

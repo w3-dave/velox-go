@@ -20,7 +20,7 @@ export default async function DashboardLayout({
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link href="/dashboard" className="text-xl font-bold tracking-tight">
-              Velox<span className="text-accent">Go</span>
+              Velox<span className="text-accent">Labs</span>
             </Link>
 
             <nav className="flex items-center gap-6">

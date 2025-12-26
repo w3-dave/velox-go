@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Velox Go - Account & Apps",
-    template: "%s | Velox Go",
+    default: "Velox Labs - Account & Apps",
+    template: "%s | Velox Labs",
   },
   description: "Manage your Velox Labs account, subscriptions, and access all your apps.",
   icons: {
@@ -33,7 +34,15 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
       >
-        {children}
+        {/* Velox navigation widget */}
+        <Script
+          src="/widget/nav.js"
+          strategy="afterInteractive"
+        />
+        {/* Main content with left padding for widget */}
+        <div className="pl-16">
+          {children}
+        </div>
       </body>
     </html>
   );
