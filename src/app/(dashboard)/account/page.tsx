@@ -59,6 +59,12 @@ export default function AccountPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
+  // Sessions state
+  const [showSessionsModal, setShowSessionsModal] = useState(false);
+  const [sessions, setSessions] = useState<{ id: string; expires: string; isCurrent: boolean }[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [revokingSession, setRevokingSession] = useState<string | null>(null);
+
   useEffect(() => {
     if (session?.user) {
       setName(session.user.name || "");
@@ -129,6 +135,70 @@ export default function AccountPage() {
     } finally {
       setPasswordLoading(false);
     }
+  };
+
+  const fetchSessions = async () => {
+    setSessionsLoading(true);
+    try {
+      const res = await fetch("/api/users/sessions");
+      if (!res.ok) throw new Error("Failed to fetch sessions");
+      const data = await res.json();
+      setSessions(data);
+    } catch {
+      setMessage({ type: "error", text: "Failed to load sessions" });
+    } finally {
+      setSessionsLoading(false);
+    }
+  };
+
+  const handleRevokeSession = async (sessionId: string) => {
+    setRevokingSession(sessionId);
+    try {
+      const res = await fetch("/api/users/sessions", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to revoke session");
+      }
+
+      setSessions(sessions.filter((s) => s.id !== sessionId));
+      setMessage({ type: "success", text: "Session revoked successfully" });
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to revoke session" });
+    } finally {
+      setRevokingSession(null);
+    }
+  };
+
+  const handleRevokeAllSessions = async () => {
+    if (!confirm("Revoke all other sessions? You will remain logged in on this device.")) return;
+
+    setSessionsLoading(true);
+    try {
+      const res = await fetch("/api/users/sessions", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ revokeAll: true }),
+      });
+
+      if (!res.ok) throw new Error("Failed to revoke sessions");
+
+      setSessions(sessions.filter((s) => s.isCurrent));
+      setMessage({ type: "success", text: "All other sessions revoked" });
+    } catch {
+      setMessage({ type: "error", text: "Failed to revoke sessions" });
+    } finally {
+      setSessionsLoading(false);
+    }
+  };
+
+  const openSessionsModal = () => {
+    setShowSessionsModal(true);
+    fetchSessions();
   };
 
   const handleDeleteAccount = async (e: React.FormEvent) => {
@@ -260,8 +330,8 @@ export default function AccountPage() {
                 <p className="font-medium">Active Sessions</p>
                 <p className="text-sm text-muted">Manage your active sessions</p>
               </div>
-              <Button variant="secondary" size="sm" disabled>
-                Coming Soon
+              <Button variant="secondary" size="sm" onClick={openSessionsModal}>
+                View
               </Button>
             </div>
           </div>
@@ -427,6 +497,83 @@ export default function AccountPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Sessions Modal */}
+      <Modal
+        isOpen={showSessionsModal}
+        onClose={() => setShowSessionsModal(false)}
+        title="Active Sessions"
+      >
+        <div className="space-y-4">
+          {sessionsLoading ? (
+            <div className="py-8 text-center text-muted">Loading sessions...</div>
+          ) : sessions.length === 0 ? (
+            <div className="py-8 text-center text-muted">No active sessions found</div>
+          ) : (
+            <>
+              <div className="space-y-3">
+                {sessions.map((s) => (
+                  <div
+                    key={s.id}
+                    className={`flex items-center justify-between p-3 rounded-lg border ${
+                      s.isCurrent ? "border-accent/50 bg-accent/5" : "border-border"
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <span className="text-sm font-medium">
+                          {s.isCurrent ? "Current Session" : "Session"}
+                        </span>
+                        {s.isCurrent && (
+                          <span className="px-2 py-0.5 text-xs bg-accent/20 text-accent rounded-full">
+                            This device
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted mt-1">
+                        Expires: {new Date(s.expires).toLocaleDateString("en-GB", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                    {!s.isCurrent && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleRevokeSession(s.id)}
+                        loading={revokingSession === s.id}
+                      >
+                        Revoke
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {sessions.filter((s) => !s.isCurrent).length > 0 && (
+                <div className="pt-2 border-t border-border">
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={handleRevokeAllSessions}
+                    loading={sessionsLoading}
+                    className="w-full"
+                  >
+                    Revoke All Other Sessions
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </Modal>
     </div>
   );
