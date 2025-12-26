@@ -9,10 +9,6 @@ const ALLOWED_ORIGINS = [
   "https://www.veloxlabs.app",
   "https://go.veloxlabs.app",
   "https://nota.veloxlabs.app",
-  // Keep DO URLs for backwards compatibility during transition
-  "https://velox-go-q6j3v.ondigitalocean.app",
-  "https://velox-nota-c5iy9.ondigitalocean.app",
-  "https://velox-www-mke95.ondigitalocean.app",
 ];
 
 function getCorsHeaders(request: NextRequest) {
