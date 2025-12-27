@@ -77,6 +77,7 @@ model Organization {
   members       OrgMember[]
   subscriptions Subscription[]
   invitations   Invitation[]
+  entities      Entity[]
 }
 
 enum OrgType {
@@ -115,6 +116,54 @@ model Invitation {
   org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   @@unique([email, orgId])
+}
+
+model Entity {
+  id    String @id @default(cuid())
+  name  String
+  slug  String
+
+  // Contact Details
+  logoUrl String?
+  email   String?
+  phone   String?
+
+  // Billing Address
+  billingAddressLine1   String?
+  billingAddressLine2   String?
+  billingAddressLine3   String?
+  billingCity           String?
+  billingState          String?
+  billingPostalCode     String?
+  billingCountry        String?
+
+  // Delivery Address
+  deliveryAddressLine1  String?
+  deliveryAddressLine2  String?
+  deliveryAddressLine3  String?
+  deliveryCity          String?
+  deliveryState         String?
+  deliveryPostalCode    String?
+  deliveryCountry       String?
+
+  // Registration Details
+  companyRegistrationNumber String?
+  vatNumber                 String?
+
+  // Financial Settings
+  baseCurrency String? // ISO 4217 code (e.g., GBP, USD, EUR)
+
+  // Flags
+  isDefault Boolean @default(false)
+
+  // Relations & Timestamps
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([orgId, slug])
+  @@index([orgId])
 }
 
 // ============================================

@@ -25,6 +25,33 @@ interface Member {
   };
 }
 
+interface Entity {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  email: string | null;
+  phone: string | null;
+  billingAddressLine1: string | null;
+  billingAddressLine2: string | null;
+  billingAddressLine3: string | null;
+  billingCity: string | null;
+  billingState: string | null;
+  billingPostalCode: string | null;
+  billingCountry: string | null;
+  deliveryAddressLine1: string | null;
+  deliveryAddressLine2: string | null;
+  deliveryAddressLine3: string | null;
+  deliveryCity: string | null;
+  deliveryState: string | null;
+  deliveryPostalCode: string | null;
+  deliveryCountry: string | null;
+  companyRegistrationNumber: string | null;
+  vatNumber: string | null;
+  baseCurrency: string | null;
+  isDefault: boolean;
+}
+
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -83,6 +110,39 @@ export default function OrgPage() {
   // Role change state
   const [changingRole, setChangingRole] = useState<string | null>(null);
 
+  // Entity state
+  const [entities, setEntities] = useState<Entity[]>([]);
+  const [showEntityModal, setShowEntityModal] = useState(false);
+  const [editingEntity, setEditingEntity] = useState<Entity | null>(null);
+  const [entityLoading, setEntityLoading] = useState(false);
+  const [entityError, setEntityError] = useState("");
+  const [entityForm, setEntityForm] = useState({
+    name: "",
+    slug: "",
+    logoUrl: "",
+    email: "",
+    phone: "",
+    billingAddressLine1: "",
+    billingAddressLine2: "",
+    billingAddressLine3: "",
+    billingCity: "",
+    billingState: "",
+    billingPostalCode: "",
+    billingCountry: "",
+    deliveryAddressLine1: "",
+    deliveryAddressLine2: "",
+    deliveryAddressLine3: "",
+    deliveryCity: "",
+    deliveryState: "",
+    deliveryPostalCode: "",
+    deliveryCountry: "",
+    companyRegistrationNumber: "",
+    vatNumber: "",
+    baseCurrency: "",
+    isDefault: false,
+    sameAsDelivery: false,
+  });
+
   useEffect(() => {
     fetchOrganizations();
   }, []);
@@ -90,6 +150,11 @@ export default function OrgPage() {
   useEffect(() => {
     if (selectedOrg) {
       fetchMembers(selectedOrg.id);
+      if (selectedOrg.type === "BUSINESS") {
+        fetchEntities(selectedOrg.id);
+      } else {
+        setEntities([]);
+      }
     }
   }, [selectedOrg]);
 
@@ -117,6 +182,165 @@ export default function OrgPage() {
       setMembers(data);
     } catch {
       console.error("Failed to fetch members");
+    }
+  };
+
+  const fetchEntities = async (orgId: string) => {
+    try {
+      const res = await fetch(`/api/orgs/${orgId}/entities`);
+      if (!res.ok) throw new Error("Failed to fetch entities");
+      const data = await res.json();
+      setEntities(data);
+    } catch {
+      console.error("Failed to fetch entities");
+    }
+  };
+
+  const resetEntityForm = () => {
+    setEntityForm({
+      name: "",
+      slug: "",
+      logoUrl: "",
+      email: "",
+      phone: "",
+      billingAddressLine1: "",
+      billingAddressLine2: "",
+      billingAddressLine3: "",
+      billingCity: "",
+      billingState: "",
+      billingPostalCode: "",
+      billingCountry: "",
+      deliveryAddressLine1: "",
+      deliveryAddressLine2: "",
+      deliveryAddressLine3: "",
+      deliveryCity: "",
+      deliveryState: "",
+      deliveryPostalCode: "",
+      deliveryCountry: "",
+      companyRegistrationNumber: "",
+      vatNumber: "",
+      baseCurrency: "",
+      isDefault: false,
+      sameAsDelivery: false,
+    });
+  };
+
+  const openCreateEntityModal = () => {
+    resetEntityForm();
+    setEditingEntity(null);
+    setEntityError("");
+    setShowEntityModal(true);
+  };
+
+  const openEditEntityModal = (entity: Entity) => {
+    setEditingEntity(entity);
+    setEntityForm({
+      name: entity.name,
+      slug: entity.slug,
+      logoUrl: entity.logoUrl || "",
+      email: entity.email || "",
+      phone: entity.phone || "",
+      billingAddressLine1: entity.billingAddressLine1 || "",
+      billingAddressLine2: entity.billingAddressLine2 || "",
+      billingAddressLine3: entity.billingAddressLine3 || "",
+      billingCity: entity.billingCity || "",
+      billingState: entity.billingState || "",
+      billingPostalCode: entity.billingPostalCode || "",
+      billingCountry: entity.billingCountry || "",
+      deliveryAddressLine1: entity.deliveryAddressLine1 || "",
+      deliveryAddressLine2: entity.deliveryAddressLine2 || "",
+      deliveryAddressLine3: entity.deliveryAddressLine3 || "",
+      deliveryCity: entity.deliveryCity || "",
+      deliveryState: entity.deliveryState || "",
+      deliveryPostalCode: entity.deliveryPostalCode || "",
+      deliveryCountry: entity.deliveryCountry || "",
+      companyRegistrationNumber: entity.companyRegistrationNumber || "",
+      vatNumber: entity.vatNumber || "",
+      baseCurrency: entity.baseCurrency || "",
+      isDefault: entity.isDefault,
+      sameAsDelivery: false,
+    });
+    setEntityError("");
+    setShowEntityModal(true);
+  };
+
+  const handleEntitySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrg) return;
+
+    setEntityLoading(true);
+    setEntityError("");
+
+    // Prepare data - copy billing to delivery if sameAsDelivery is checked
+    const formData = { ...entityForm };
+    if (formData.sameAsDelivery) {
+      formData.deliveryAddressLine1 = formData.billingAddressLine1;
+      formData.deliveryAddressLine2 = formData.billingAddressLine2;
+      formData.deliveryAddressLine3 = formData.billingAddressLine3;
+      formData.deliveryCity = formData.billingCity;
+      formData.deliveryState = formData.billingState;
+      formData.deliveryPostalCode = formData.billingPostalCode;
+      formData.deliveryCountry = formData.billingCountry;
+    }
+
+    try {
+      const url = editingEntity
+        ? `/api/orgs/${selectedOrg.id}/entities/${editingEntity.id}`
+        : `/api/orgs/${selectedOrg.id}/entities`;
+      const method = editingEntity ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setEntityError(data.error || "Failed to save entity");
+        return;
+      }
+
+      // Refresh entities
+      await fetchEntities(selectedOrg.id);
+      setShowEntityModal(false);
+      setMessage({
+        type: "success",
+        text: editingEntity ? "Entity updated successfully" : "Entity created successfully",
+      });
+    } catch {
+      setEntityError("Failed to save entity");
+    } finally {
+      setEntityLoading(false);
+    }
+  };
+
+  const handleDeleteEntity = async () => {
+    if (!selectedOrg || !editingEntity) return;
+    if (!confirm("Are you sure you want to delete this entity?")) return;
+
+    setEntityLoading(true);
+
+    try {
+      const res = await fetch(`/api/orgs/${selectedOrg.id}/entities/${editingEntity.id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setEntityError(data.error || "Failed to delete entity");
+        return;
+      }
+
+      await fetchEntities(selectedOrg.id);
+      setShowEntityModal(false);
+      setMessage({ type: "success", text: "Entity deleted successfully" });
+    } catch {
+      setEntityError("Failed to delete entity");
+    } finally {
+      setEntityLoading(false);
     }
   };
 
@@ -400,6 +624,61 @@ export default function OrgPage() {
             </div>
           </section>
 
+          {/* Business Entities - Only for BUSINESS orgs, visible to OWNER/ADMIN */}
+          {selectedOrg.type === "BUSINESS" && (selectedOrg.role === "OWNER" || selectedOrg.role === "ADMIN") && (
+            <section className="bg-card border border-border rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Business Entities</h2>
+                <Button variant="secondary" size="sm" onClick={openCreateEntityModal}>
+                  Add Entity
+                </Button>
+              </div>
+
+              {entities.length === 0 ? (
+                <p className="text-sm text-muted">No entities yet. Create your first entity to get started.</p>
+              ) : (
+                <div className="space-y-3">
+                  {entities.map((entity) => (
+                    <div
+                      key={entity.id}
+                      className="flex items-center justify-between p-4 bg-input rounded-lg border border-border hover:border-muted-foreground/30 transition-colors cursor-pointer"
+                      onClick={() => openEditEntityModal(entity)}
+                    >
+                      <div className="flex items-center gap-3">
+                        {entity.logoUrl ? (
+                          <img src={entity.logoUrl} alt={entity.name} className="w-10 h-10 rounded-lg object-cover" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center">
+                            <span className="text-accent font-bold">{entity.name[0]?.toUpperCase()}</span>
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-medium">{entity.name}</p>
+                          <p className="text-sm text-muted">{entity.slug}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {entity.isDefault && (
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-accent/20 text-accent">
+                            Default
+                          </span>
+                        )}
+                        {entity.baseCurrency && (
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-muted/20 text-muted">
+                            {entity.baseCurrency}
+                          </span>
+                        )}
+                        <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
           {/* Team Members */}
           <section className="bg-card border border-border rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
@@ -629,6 +908,331 @@ export default function OrgPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Entity Modal */}
+      {showEntityModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowEntityModal(false)} />
+          <div className="relative bg-card border border-border rounded-xl w-full max-w-2xl mx-4 shadow-xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <h2 className="text-lg font-semibold">
+                {editingEntity ? "Edit Entity" : "Create Entity"}
+              </h2>
+              <button
+                onClick={() => setShowEntityModal(false)}
+                className="p-1 text-muted hover:text-foreground transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleEntitySubmit} className="flex-1 overflow-y-auto p-6">
+              {entityError && (
+                <div className="mb-4 p-3 rounded-lg bg-error/10 border border-error/20 text-error text-sm">
+                  {entityError}
+                </div>
+              )}
+
+              {/* Basic Info */}
+              <div className="mb-6">
+                <h3 className="text-sm font-medium text-muted mb-3">Basic Information</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="entity-name">Name *</Label>
+                    <Input
+                      id="entity-name"
+                      type="text"
+                      value={entityForm.name}
+                      onChange={(e) => setEntityForm({ ...entityForm, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="entity-slug">Slug</Label>
+                    <Input
+                      id="entity-slug"
+                      type="text"
+                      value={entityForm.slug}
+                      onChange={(e) => setEntityForm({ ...entityForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })}
+                      placeholder="Auto-generated from name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="entity-email">Email</Label>
+                    <Input
+                      id="entity-email"
+                      type="email"
+                      value={entityForm.email}
+                      onChange={(e) => setEntityForm({ ...entityForm, email: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="entity-phone">Phone</Label>
+                    <Input
+                      id="entity-phone"
+                      type="tel"
+                      value={entityForm.phone}
+                      onChange={(e) => setEntityForm({ ...entityForm, phone: e.target.value })}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="entity-logo">Logo URL</Label>
+                    <Input
+                      id="entity-logo"
+                      type="url"
+                      value={entityForm.logoUrl}
+                      onChange={(e) => setEntityForm({ ...entityForm, logoUrl: e.target.value })}
+                      placeholder="https://example.com/logo.png"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Billing Address */}
+              <div className="mb-6">
+                <h3 className="text-sm font-medium text-muted mb-3">Billing Address</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="billing-line1">Address Line 1</Label>
+                    <Input
+                      id="billing-line1"
+                      type="text"
+                      value={entityForm.billingAddressLine1}
+                      onChange={(e) => setEntityForm({ ...entityForm, billingAddressLine1: e.target.value })}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="billing-line2">Address Line 2</Label>
+                    <Input
+                      id="billing-line2"
+                      type="text"
+                      value={entityForm.billingAddressLine2}
+                      onChange={(e) => setEntityForm({ ...entityForm, billingAddressLine2: e.target.value })}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="billing-line3">Address Line 3</Label>
+                    <Input
+                      id="billing-line3"
+                      type="text"
+                      value={entityForm.billingAddressLine3}
+                      onChange={(e) => setEntityForm({ ...entityForm, billingAddressLine3: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="billing-city">City</Label>
+                    <Input
+                      id="billing-city"
+                      type="text"
+                      value={entityForm.billingCity}
+                      onChange={(e) => setEntityForm({ ...entityForm, billingCity: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="billing-state">State / Province</Label>
+                    <Input
+                      id="billing-state"
+                      type="text"
+                      value={entityForm.billingState}
+                      onChange={(e) => setEntityForm({ ...entityForm, billingState: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="billing-postal">Postal Code</Label>
+                    <Input
+                      id="billing-postal"
+                      type="text"
+                      value={entityForm.billingPostalCode}
+                      onChange={(e) => setEntityForm({ ...entityForm, billingPostalCode: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="billing-country">Country</Label>
+                    <Input
+                      id="billing-country"
+                      type="text"
+                      value={entityForm.billingCountry}
+                      onChange={(e) => setEntityForm({ ...entityForm, billingCountry: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Delivery Address */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-muted">Delivery Address</h3>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={entityForm.sameAsDelivery}
+                      onChange={(e) => setEntityForm({ ...entityForm, sameAsDelivery: e.target.checked })}
+                      className="rounded border-border"
+                    />
+                    Same as billing
+                  </label>
+                </div>
+                {!entityForm.sameAsDelivery && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="delivery-line1">Address Line 1</Label>
+                      <Input
+                        id="delivery-line1"
+                        type="text"
+                        value={entityForm.deliveryAddressLine1}
+                        onChange={(e) => setEntityForm({ ...entityForm, deliveryAddressLine1: e.target.value })}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="delivery-line2">Address Line 2</Label>
+                      <Input
+                        id="delivery-line2"
+                        type="text"
+                        value={entityForm.deliveryAddressLine2}
+                        onChange={(e) => setEntityForm({ ...entityForm, deliveryAddressLine2: e.target.value })}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="delivery-line3">Address Line 3</Label>
+                      <Input
+                        id="delivery-line3"
+                        type="text"
+                        value={entityForm.deliveryAddressLine3}
+                        onChange={(e) => setEntityForm({ ...entityForm, deliveryAddressLine3: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="delivery-city">City</Label>
+                      <Input
+                        id="delivery-city"
+                        type="text"
+                        value={entityForm.deliveryCity}
+                        onChange={(e) => setEntityForm({ ...entityForm, deliveryCity: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="delivery-state">State / Province</Label>
+                      <Input
+                        id="delivery-state"
+                        type="text"
+                        value={entityForm.deliveryState}
+                        onChange={(e) => setEntityForm({ ...entityForm, deliveryState: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="delivery-postal">Postal Code</Label>
+                      <Input
+                        id="delivery-postal"
+                        type="text"
+                        value={entityForm.deliveryPostalCode}
+                        onChange={(e) => setEntityForm({ ...entityForm, deliveryPostalCode: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="delivery-country">Country</Label>
+                      <Input
+                        id="delivery-country"
+                        type="text"
+                        value={entityForm.deliveryCountry}
+                        onChange={(e) => setEntityForm({ ...entityForm, deliveryCountry: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Registration Details */}
+              <div className="mb-6">
+                <h3 className="text-sm font-medium text-muted mb-3">Registration Details</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="entity-reg">Company Registration Number</Label>
+                    <Input
+                      id="entity-reg"
+                      type="text"
+                      value={entityForm.companyRegistrationNumber}
+                      onChange={(e) => setEntityForm({ ...entityForm, companyRegistrationNumber: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="entity-vat">VAT Number</Label>
+                    <Input
+                      id="entity-vat"
+                      type="text"
+                      value={entityForm.vatNumber}
+                      onChange={(e) => setEntityForm({ ...entityForm, vatNumber: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Financial Settings */}
+              <div className="mb-6">
+                <h3 className="text-sm font-medium text-muted mb-3">Financial Settings</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="entity-currency">Base Currency</Label>
+                    <select
+                      id="entity-currency"
+                      value={entityForm.baseCurrency}
+                      onChange={(e) => setEntityForm({ ...entityForm, baseCurrency: e.target.value })}
+                      className="w-full px-4 py-2 rounded-lg bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-accent mt-1.5"
+                    >
+                      <option value="">Select currency</option>
+                      <option value="GBP">GBP - British Pound</option>
+                      <option value="USD">USD - US Dollar</option>
+                      <option value="EUR">EUR - Euro</option>
+                      <option value="CAD">CAD - Canadian Dollar</option>
+                      <option value="AUD">AUD - Australian Dollar</option>
+                      <option value="JPY">JPY - Japanese Yen</option>
+                      <option value="CHF">CHF - Swiss Franc</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end">
+                    <label className="flex items-center gap-2 text-sm pb-2">
+                      <input
+                        type="checkbox"
+                        checked={entityForm.isDefault}
+                        onChange={(e) => setEntityForm({ ...entityForm, isDefault: e.target.checked })}
+                        className="rounded border-border"
+                      />
+                      Set as default entity
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4 border-t border-border">
+                {editingEntity && (
+                  <Button
+                    type="button"
+                    variant="danger"
+                    onClick={handleDeleteEntity}
+                    disabled={entityLoading}
+                  >
+                    Delete
+                  </Button>
+                )}
+                <div className="flex-1" />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setShowEntityModal(false)}
+                  disabled={entityLoading}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" loading={entityLoading}>
+                  {editingEntity ? "Update Entity" : "Create Entity"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

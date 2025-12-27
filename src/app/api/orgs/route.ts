@@ -79,6 +79,19 @@ export async function POST(request: Request) {
             role: "OWNER",
           },
         },
+        // Auto-create default entity for BUSINESS organizations
+        ...(type === "BUSINESS" && {
+          entities: {
+            create: {
+              name,
+              slug: "default",
+              isDefault: true,
+            },
+          },
+        }),
+      },
+      include: {
+        entities: type === "BUSINESS",
       },
     });
 
