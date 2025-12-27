@@ -78,6 +78,7 @@ model Organization {
   subscriptions Subscription[]
   invitations   Invitation[]
   entities      Entity[]
+  groups        Group[]
 }
 
 enum OrgType {
@@ -92,16 +93,31 @@ model OrgMember {
   orgId     String
   createdAt DateTime @default(now())
 
-  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org              Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  appAccess        MemberAppAccess[]
+  groupMemberships GroupMember[]
 
   @@unique([userId, orgId])
+}
+
+model MemberAppAccess {
+  id        String   @id @default(cuid())
+  memberId  String
+  appSlug   String
+  createdAt DateTime @default(now())
+
+  member OrgMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, appSlug])
+  @@index([memberId])
 }
 
 enum Role {
   OWNER
   ADMIN
   MEMBER
+  EXTERNAL
 }
 
 model Invitation {
@@ -112,6 +128,7 @@ model Invitation {
   token     String   @unique @default(cuid())
   expiresAt DateTime
   createdAt DateTime @default(now())
+  appSlugs  String?  // Comma-separated app slugs for EXTERNAL role
 
   org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
@@ -164,6 +181,52 @@ model Entity {
 
   @@unique([orgId, slug])
   @@index([orgId])
+}
+
+// ============================================
+// Group Models
+// ============================================
+
+model Group {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  orgId       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  org       Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  members   GroupMember[]
+  appAccess GroupAppAccess[]
+
+  @@unique([orgId, name])
+  @@index([orgId])
+}
+
+model GroupMember {
+  id        String   @id @default(cuid())
+  groupId   String
+  memberId  String
+  createdAt DateTime @default(now())
+
+  group  Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  member OrgMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, memberId])
+  @@index([groupId])
+  @@index([memberId])
+}
+
+model GroupAppAccess {
+  id        String   @id @default(cuid())
+  groupId   String
+  appSlug   String
+  createdAt DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, appSlug])
+  @@index([groupId])
 }
 
 // ============================================

@@ -28,6 +28,14 @@ export async function GET(
       return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
 
+    // EXTERNAL users cannot view members list
+    if (membership.role === "EXTERNAL") {
+      return NextResponse.json(
+        { error: "External users cannot access organization settings" },
+        { status: 403 }
+      );
+    }
+
     const members = await prisma.orgMember.findMany({
       where: { orgId },
       include: {
@@ -39,14 +47,40 @@ export async function GET(
             image: true,
           },
         },
+        appAccess: {
+          select: {
+            appSlug: true,
+          },
+        },
+        groupMemberships: {
+          include: {
+            group: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
       orderBy: [
-        { role: "asc" }, // OWNER first, then ADMIN, then MEMBER
+        { role: "asc" }, // OWNER first, then ADMIN, then MEMBER, then EXTERNAL
         { createdAt: "asc" },
       ],
     });
 
-    return NextResponse.json(members);
+    // Transform appAccess to array of slugs and groups to simplified array
+    const membersWithDetails = members.map((member) => ({
+      ...member,
+      appAccess: member.appAccess.map((a) => a.appSlug),
+      groups: member.groupMemberships.map((gm) => ({
+        id: gm.group.id,
+        name: gm.group.name,
+      })),
+      groupMemberships: undefined, // Remove the raw groupMemberships from response
+    }));
+
+    return NextResponse.json(membersWithDetails);
   } catch (error) {
     console.error("Error fetching members:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -67,14 +101,24 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { memberId, role } = body;
+    const { memberId, role, appSlugs } = body;
 
     if (!memberId || !role) {
       return NextResponse.json({ error: "Member ID and role are required" }, { status: 400 });
     }
 
-    if (!["ADMIN", "MEMBER"].includes(role)) {
+    if (!["ADMIN", "MEMBER", "EXTERNAL"].includes(role)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+    }
+
+    // EXTERNAL role requires app access
+    if (role === "EXTERNAL") {
+      if (!appSlugs || !Array.isArray(appSlugs) || appSlugs.length === 0) {
+        return NextResponse.json(
+          { error: "EXTERNAL role requires at least one app access" },
+          { status: 400 }
+        );
+      }
     }
 
     // Verify user is OWNER
@@ -110,22 +154,63 @@ export async function PATCH(
       return NextResponse.json({ error: "Cannot change your own role" }, { status: 400 });
     }
 
-    const updatedMember = await prisma.orgMember.update({
-      where: { id: memberId },
-      data: { role },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
+    // Handle app access changes
+    const wasExternal = targetMember.role === "EXTERNAL";
+    const becomingExternal = role === "EXTERNAL";
+
+    // Use transaction for role + app access changes
+    const updatedMember = await prisma.$transaction(async (tx) => {
+      // If changing FROM EXTERNAL, delete app access records
+      if (wasExternal && !becomingExternal) {
+        await tx.memberAppAccess.deleteMany({
+          where: { memberId },
+        });
+      }
+
+      // If changing TO EXTERNAL, create app access records
+      if (becomingExternal) {
+        // Delete existing app access (if any)
+        await tx.memberAppAccess.deleteMany({
+          where: { memberId },
+        });
+        // Create new app access records
+        await tx.memberAppAccess.createMany({
+          data: appSlugs.map((slug: string) => ({
+            memberId,
+            appSlug: slug,
+          })),
+        });
+      }
+
+      // Update the role
+      return tx.orgMember.update({
+        where: { id: memberId },
+        data: { role },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              image: true,
+            },
+          },
+          appAccess: {
+            select: {
+              appSlug: true,
+            },
           },
         },
-      },
+      });
     });
 
-    return NextResponse.json(updatedMember);
+    // Transform appAccess to array of slugs
+    const result = {
+      ...updatedMember,
+      appAccess: updatedMember.appAccess.map((a) => a.appSlug),
+    };
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Error updating member role:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -157,7 +242,7 @@ export async function DELETE(
       },
     });
 
-    if (!userMembership || userMembership.role === "MEMBER") {
+    if (!userMembership || userMembership.role === "MEMBER" || userMembership.role === "EXTERNAL") {
       return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
     }
 

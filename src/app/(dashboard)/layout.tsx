@@ -1,9 +1,11 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { MobileNav } from "@/components/dashboard/mobile-nav";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 
-const navLinks = [
+const allNavLinks = [
   { href: "/dashboard", label: "Apps" },
   { href: "/org", label: "Organization" },
   { href: "/billing", label: "Billing" },
@@ -20,6 +22,22 @@ export default async function DashboardLayout({
   if (!session?.user) {
     redirect("/login");
   }
+
+  // Check if user has any internal roles (non-EXTERNAL)
+  // If user is EXTERNAL in ALL orgs, hide Organization link
+  const memberships = await prisma.orgMember.findMany({
+    where: { userId: session.user.id },
+    select: { role: true },
+  });
+
+  const hasInternalRole = memberships.some(
+    (m) => m.role === "OWNER" || m.role === "ADMIN" || m.role === "MEMBER"
+  );
+
+  // Filter nav links for EXTERNAL-only users
+  const navLinks = hasInternalRole
+    ? allNavLinks
+    : allNavLinks.filter((link) => link.href !== "/org");
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -49,14 +67,7 @@ export default async function DashboardLayout({
               <span className="text-sm text-muted truncate max-w-[180px]">
                 {session.user.email}
               </span>
-              <form action="/api/auth/signout" method="POST">
-                <button
-                  type="submit"
-                  className="text-sm text-muted hover:text-foreground transition-colors"
-                >
-                  Sign out
-                </button>
-              </form>
+              <SignOutButton className="text-sm text-muted hover:text-foreground transition-colors" />
             </div>
 
             {/* Mobile nav */}

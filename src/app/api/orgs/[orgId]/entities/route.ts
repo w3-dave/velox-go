@@ -35,6 +35,14 @@ export async function GET(
       );
     }
 
+    // EXTERNAL users cannot access org settings
+    if (membership.role === "EXTERNAL") {
+      return NextResponse.json(
+        { error: "External users cannot access organization settings" },
+        { status: 403 }
+      );
+    }
+
     // Only BUSINESS orgs have entities
     if (membership.org.type !== "BUSINESS") {
       return NextResponse.json([]);
@@ -81,7 +89,7 @@ export async function POST(
       },
     });
 
-    if (!membership || membership.role === "MEMBER") {
+    if (!membership || membership.role === "MEMBER" || membership.role === "EXTERNAL") {
       return NextResponse.json(
         { error: "Insufficient permissions" },
         { status: 403 }

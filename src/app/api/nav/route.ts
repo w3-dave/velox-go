@@ -70,10 +70,27 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get user's subscriptions
+    // Get user's memberships with app access and group memberships
     const memberships = await prisma.orgMember.findMany({
       where: { userId: session.user.id },
-      select: { orgId: true },
+      select: {
+        orgId: true,
+        role: true,
+        appAccess: {
+          select: { appSlug: true },
+        },
+        groupMemberships: {
+          select: {
+            group: {
+              select: {
+                appAccess: {
+                  select: { appSlug: true },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     const orgIds = memberships.map((m) => m.orgId);
@@ -88,9 +105,34 @@ export async function GET(request: NextRequest) {
 
     const subscribedApps = subscriptions.map((s) => s.appSlug);
 
+    // Filter apps based on role and access permissions
+    // OWNER and ADMIN always have full access
+    // MEMBER and EXTERNAL get union of individual + group access
+    const hasFullAccessRole = memberships.some(
+      (m) => m.role === "OWNER" || m.role === "ADMIN"
+    );
+
+    let filteredApps = veloxApps;
+    if (!hasFullAccessRole && memberships.length > 0) {
+      // User is MEMBER or EXTERNAL - compute accessible apps from individual + group access
+      const accessibleSlugs = new Set<string>();
+
+      memberships.forEach((m) => {
+        // Add individual app access
+        m.appAccess.forEach((a) => accessibleSlugs.add(a.appSlug));
+
+        // Add group-based app access
+        m.groupMemberships.forEach((gm) => {
+          gm.group.appAccess.forEach((ga) => accessibleSlugs.add(ga.appSlug));
+        });
+      });
+
+      filteredApps = veloxApps.filter((app) => accessibleSlugs.has(app.slug));
+    }
+
     return NextResponse.json(
       {
-        apps: veloxApps.map((app) => ({
+        apps: filteredApps.map((app) => ({
           slug: app.slug,
           name: app.name,
           icon: app.icon,

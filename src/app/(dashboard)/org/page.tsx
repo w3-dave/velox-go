@@ -10,19 +10,29 @@ interface Organization {
   name: string;
   slug: string;
   type: "INDIVIDUAL" | "BUSINESS";
-  role: "OWNER" | "ADMIN" | "MEMBER";
+  role: "OWNER" | "ADMIN" | "MEMBER" | "EXTERNAL";
   memberCount: number;
 }
 
 interface Member {
   id: string;
-  role: "OWNER" | "ADMIN" | "MEMBER";
+  role: "OWNER" | "ADMIN" | "MEMBER" | "EXTERNAL";
   user: {
     id: string;
     name: string | null;
     email: string;
     image: string | null;
   };
+  appAccess?: string[];
+  groups?: { id: string; name: string }[];
+}
+
+interface Group {
+  id: string;
+  name: string;
+  description: string | null;
+  memberCount: number;
+  appAccess: string[];
 }
 
 interface Entity {
@@ -89,7 +99,8 @@ export default function OrgPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"ADMIN" | "MEMBER">("MEMBER");
+  const [inviteRole, setInviteRole] = useState<"ADMIN" | "MEMBER" | "EXTERNAL">("MEMBER");
+  const [inviteAppSlugs, setInviteAppSlugs] = useState<string[]>([]);
   const [inviting, setInviting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -116,6 +127,21 @@ export default function OrgPage() {
   const [editingEntity, setEditingEntity] = useState<Entity | null>(null);
   const [entityLoading, setEntityLoading] = useState(false);
   const [entityError, setEntityError] = useState("");
+
+  // Group state
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [showGroupModal, setShowGroupModal] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<Group | null>(null);
+  const [groupLoading, setGroupLoading] = useState(false);
+  const [groupError, setGroupError] = useState("");
+  const [groupForm, setGroupForm] = useState({
+    name: "",
+    description: "",
+  });
+  const [groupAppAccess, setGroupAppAccess] = useState<string[]>([]);
+  const [showGroupMembersModal, setShowGroupMembersModal] = useState(false);
+  const [groupMembers, setGroupMembers] = useState<Member[]>([]);
+  const [groupMembersLoading, setGroupMembersLoading] = useState(false);
   const [entityForm, setEntityForm] = useState({
     name: "",
     slug: "",
@@ -150,6 +176,7 @@ export default function OrgPage() {
   useEffect(() => {
     if (selectedOrg) {
       fetchMembers(selectedOrg.id);
+      fetchGroups(selectedOrg.id);
       if (selectedOrg.type === "BUSINESS") {
         fetchEntities(selectedOrg.id);
       } else {
@@ -193,6 +220,207 @@ export default function OrgPage() {
       setEntities(data);
     } catch {
       console.error("Failed to fetch entities");
+    }
+  };
+
+  const fetchGroups = async (orgId: string) => {
+    try {
+      const res = await fetch(`/api/orgs/${orgId}/groups`);
+      if (!res.ok) throw new Error("Failed to fetch groups");
+      const data = await res.json();
+      setGroups(data.groups || []);
+    } catch {
+      console.error("Failed to fetch groups");
+    }
+  };
+
+  const resetGroupForm = () => {
+    setGroupForm({ name: "", description: "" });
+    setGroupAppAccess([]);
+  };
+
+  const openCreateGroupModal = () => {
+    resetGroupForm();
+    setEditingGroup(null);
+    setGroupError("");
+    setShowGroupModal(true);
+  };
+
+  const openEditGroupModal = (group: Group) => {
+    setEditingGroup(group);
+    setGroupForm({
+      name: group.name,
+      description: group.description || "",
+    });
+    setGroupAppAccess(group.appAccess);
+    setGroupError("");
+    setShowGroupModal(true);
+  };
+
+  const handleGroupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrg) return;
+
+    setGroupLoading(true);
+    setGroupError("");
+
+    try {
+      if (editingGroup) {
+        // Update group
+        const res = await fetch(`/api/orgs/${selectedOrg.id}/groups/${editingGroup.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(groupForm),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          setGroupError(data.error || "Failed to update group");
+          return;
+        }
+
+        // Update app access
+        await fetch(`/api/orgs/${selectedOrg.id}/groups/${editingGroup.id}/app-access`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ appSlugs: groupAppAccess }),
+        });
+      } else {
+        // Create group
+        const res = await fetch(`/api/orgs/${selectedOrg.id}/groups`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(groupForm),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          setGroupError(data.error || "Failed to create group");
+          return;
+        }
+
+        // Set app access for new group
+        if (groupAppAccess.length > 0) {
+          await fetch(`/api/orgs/${selectedOrg.id}/groups/${data.id}/app-access`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ appSlugs: groupAppAccess }),
+          });
+        }
+      }
+
+      await fetchGroups(selectedOrg.id);
+      setShowGroupModal(false);
+      setMessage({
+        type: "success",
+        text: editingGroup ? "Group updated successfully" : "Group created successfully",
+      });
+    } catch {
+      setGroupError("Failed to save group");
+    } finally {
+      setGroupLoading(false);
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!selectedOrg || !editingGroup) return;
+    if (!confirm("Are you sure you want to delete this group?")) return;
+
+    setGroupLoading(true);
+
+    try {
+      const res = await fetch(`/api/orgs/${selectedOrg.id}/groups/${editingGroup.id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setGroupError(data.error || "Failed to delete group");
+        return;
+      }
+
+      await fetchGroups(selectedOrg.id);
+      setShowGroupModal(false);
+      setMessage({ type: "success", text: "Group deleted successfully" });
+    } catch {
+      setGroupError("Failed to delete group");
+    } finally {
+      setGroupLoading(false);
+    }
+  };
+
+  const openGroupMembersModal = async (group: Group) => {
+    if (!selectedOrg) return;
+    setEditingGroup(group);
+    setGroupMembersLoading(true);
+    setShowGroupMembersModal(true);
+
+    try {
+      const res = await fetch(`/api/orgs/${selectedOrg.id}/groups/${group.id}/members`);
+      if (!res.ok) throw new Error("Failed to fetch group members");
+      const data = await res.json();
+      setGroupMembers(data.members || []);
+    } catch {
+      console.error("Failed to fetch group members");
+      setGroupMembers([]);
+    } finally {
+      setGroupMembersLoading(false);
+    }
+  };
+
+  const handleAddToGroup = async (memberId: string) => {
+    if (!selectedOrg || !editingGroup) return;
+
+    try {
+      const res = await fetch(`/api/orgs/${selectedOrg.id}/groups/${editingGroup.id}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error || "Failed to add member to group" });
+        return;
+      }
+
+      // Refresh group members and groups list
+      const refreshRes = await fetch(`/api/orgs/${selectedOrg.id}/groups/${editingGroup.id}/members`);
+      if (refreshRes.ok) {
+        const refreshData = await refreshRes.json();
+        setGroupMembers(refreshData.members || []);
+      }
+      await fetchGroups(selectedOrg.id);
+      await fetchMembers(selectedOrg.id);
+      setMessage({ type: "success", text: "Member added to group" });
+    } catch {
+      setMessage({ type: "error", text: "Failed to add member to group" });
+    }
+  };
+
+  const handleRemoveFromGroup = async (memberId: string) => {
+    if (!selectedOrg || !editingGroup) return;
+    if (!confirm("Remove this member from the group?")) return;
+
+    try {
+      const res = await fetch(`/api/orgs/${selectedOrg.id}/groups/${editingGroup.id}/members`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error || "Failed to remove member from group" });
+        return;
+      }
+
+      setGroupMembers(groupMembers.filter((m) => m.id !== memberId));
+      await fetchGroups(selectedOrg.id);
+      await fetchMembers(selectedOrg.id);
+      setMessage({ type: "success", text: "Member removed from group" });
+    } catch {
+      setMessage({ type: "error", text: "Failed to remove member from group" });
     }
   };
 
@@ -352,10 +580,18 @@ export default function OrgPage() {
     setMessage(null);
 
     try {
+      const invitePayload: { email: string; role: string; appSlugs?: string[] } = {
+        email: inviteEmail,
+        role: inviteRole,
+      };
+      if (inviteRole === "EXTERNAL") {
+        invitePayload.appSlugs = inviteAppSlugs;
+      }
+
       const res = await fetch(`/api/orgs/${selectedOrg.id}/invitations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+        body: JSON.stringify(invitePayload),
       });
 
       if (!res.ok) {
@@ -365,6 +601,8 @@ export default function OrgPage() {
 
       setMessage({ type: "success", text: `Invitation sent to ${inviteEmail}` });
       setInviteEmail("");
+      setInviteRole("MEMBER");
+      setInviteAppSlugs([]);
     } catch (err) {
       setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to send invitation" });
     } finally {
@@ -500,6 +738,8 @@ export default function OrgPage() {
         return "bg-accent/20 text-accent";
       case "ADMIN":
         return "bg-purple-500/20 text-purple-400";
+      case "EXTERNAL":
+        return "bg-orange-500/20 text-orange-400";
       default:
         return "bg-muted/20 text-muted";
     }
@@ -679,6 +919,80 @@ export default function OrgPage() {
             </section>
           )}
 
+          {/* Groups - Visible to OWNER, ADMIN, MEMBER */}
+          {(selectedOrg.role === "OWNER" || selectedOrg.role === "ADMIN" || selectedOrg.role === "MEMBER") && (
+            <section className="bg-card border border-border rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Groups</h2>
+                {(selectedOrg.role === "OWNER" || selectedOrg.role === "ADMIN") && (
+                  <Button variant="secondary" size="sm" onClick={openCreateGroupModal}>
+                    Create Group
+                  </Button>
+                )}
+              </div>
+
+              {groups.length === 0 ? (
+                <p className="text-sm text-muted">No groups yet. Groups help organize members and manage app access.</p>
+              ) : (
+                <div className="space-y-3">
+                  {groups.map((group) => (
+                    <div
+                      key={group.id}
+                      className="flex items-center justify-between p-4 bg-input rounded-lg border border-border hover:border-muted-foreground/30 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                          <span className="text-purple-400 font-bold">{group.name[0]?.toUpperCase()}</span>
+                        </div>
+                        <div>
+                          <p className="font-medium">{group.name}</p>
+                          {group.description && <p className="text-sm text-muted">{group.description}</p>}
+                          <div className="flex gap-2 mt-1">
+                            <span className="text-xs text-muted">{group.memberCount} members</span>
+                            {group.appAccess.length > 0 && (
+                              <span className="text-xs text-muted">
+                                • {group.appAccess.length} apps
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {group.appAccess.map((slug) => (
+                          <span key={slug} className="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 capitalize">
+                            {slug}
+                          </span>
+                        ))}
+                        {(selectedOrg.role === "OWNER" || selectedOrg.role === "ADMIN") && (
+                          <>
+                            <button
+                              onClick={() => openGroupMembersModal(group)}
+                              className="p-1.5 text-muted hover:text-foreground transition-colors"
+                              title="Manage members"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => openEditGroupModal(group)}
+                              className="p-1.5 text-muted hover:text-foreground transition-colors"
+                              title="Edit group"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
           {/* Team Members */}
           <section className="bg-card border border-border rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
@@ -696,6 +1010,25 @@ export default function OrgPage() {
                     <div className="min-w-0">
                       <p className="font-medium truncate">{member.user.name || "No name"}</p>
                       <p className="text-sm text-muted truncate">{member.user.email}</p>
+                      {/* Show groups for all members */}
+                      {member.groups && member.groups.length > 0 && (
+                        <div className="flex gap-1 mt-1 flex-wrap">
+                          {member.groups.map((g) => (
+                            <span key={g.id} className="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-400">
+                              {g.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {member.role === "EXTERNAL" && member.appAccess && member.appAccess.length > 0 && (
+                        <div className="flex gap-1 mt-1 flex-wrap">
+                          {member.appAccess.map((slug) => (
+                            <span key={slug} className="text-xs px-2 py-0.5 rounded bg-orange-500/10 text-orange-400 capitalize">
+                              {slug}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 ml-13 sm:ml-0">
@@ -704,11 +1037,12 @@ export default function OrgPage() {
                         <select
                           value={member.role}
                           onChange={(e) => handleChangeRole(member.id, e.target.value as "ADMIN" | "MEMBER")}
-                          disabled={changingRole === member.id}
-                          className="px-3 py-1.5 rounded-lg bg-input border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                          disabled={changingRole === member.id || member.role === "EXTERNAL"}
+                          className="px-3 py-1.5 rounded-lg bg-input border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50"
                         >
                           <option value="MEMBER">Member</option>
                           <option value="ADMIN">Admin</option>
+                          {member.role === "EXTERNAL" && <option value="EXTERNAL">External</option>}
                         </select>
                         <button
                           onClick={() => handleRemoveMember(member.id)}
@@ -735,29 +1069,64 @@ export default function OrgPage() {
           {(selectedOrg.role === "OWNER" || selectedOrg.role === "ADMIN") && (
             <section className="bg-card border border-border rounded-xl p-6">
               <h2 className="text-lg font-semibold mb-4">Invite Team Member</h2>
-              <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                <div className="flex-1">
-                  <Input
-                    type="email"
-                    placeholder="colleague@company.com"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    required
-                  />
+              <form onSubmit={handleInvite} className="space-y-4">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                  <div className="flex-1">
+                    <Input
+                      type="email"
+                      placeholder="colleague@company.com"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <select
+                      value={inviteRole}
+                      onChange={(e) => {
+                        const role = e.target.value as "ADMIN" | "MEMBER" | "EXTERNAL";
+                        setInviteRole(role);
+                        if (role !== "EXTERNAL") {
+                          setInviteAppSlugs([]);
+                        }
+                      }}
+                      className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                    >
+                      <option value="MEMBER">Member</option>
+                      <option value="ADMIN">Admin</option>
+                      <option value="EXTERNAL">External</option>
+                    </select>
+                    <Button type="submit" loading={inviting} disabled={inviteRole === "EXTERNAL" && inviteAppSlugs.length === 0}>
+                      Send Invite
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-3">
-                  <select
-                    value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value as "ADMIN" | "MEMBER")}
-                    className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-                  >
-                    <option value="MEMBER">Member</option>
-                    <option value="ADMIN">Admin</option>
-                  </select>
-                  <Button type="submit" loading={inviting}>
-                    Send Invite
-                  </Button>
-                </div>
+                {inviteRole === "EXTERNAL" && (
+                  <div className="p-4 bg-orange-500/5 border border-orange-500/20 rounded-lg">
+                    <p className="text-sm text-orange-400 mb-3">
+                      External users only have access to specific apps. Select which apps they can use:
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {["nota", "contacts", "inventory", "projects"].map((appSlug) => (
+                        <label key={appSlug} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={inviteAppSlugs.includes(appSlug)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setInviteAppSlugs([...inviteAppSlugs, appSlug]);
+                              } else {
+                                setInviteAppSlugs(inviteAppSlugs.filter((s) => s !== appSlug));
+                              }
+                            }}
+                            className="rounded border-border"
+                          />
+                          <span className="text-sm capitalize">{appSlug}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </form>
             </section>
           )}
@@ -1233,6 +1602,173 @@ export default function OrgPage() {
           </div>
         </div>
       )}
+
+      {/* Group Modal */}
+      <Modal
+        isOpen={showGroupModal}
+        onClose={() => setShowGroupModal(false)}
+        title={editingGroup ? "Edit Group" : "Create Group"}
+      >
+        <form onSubmit={handleGroupSubmit} className="space-y-4">
+          {groupError && (
+            <div className="p-3 rounded-lg bg-error/10 border border-error/20 text-error text-sm">
+              {groupError}
+            </div>
+          )}
+
+          <div>
+            <Label htmlFor="group-name">Name *</Label>
+            <Input
+              id="group-name"
+              type="text"
+              value={groupForm.name}
+              onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
+              placeholder="e.g., Human Resources"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="group-description">Description</Label>
+            <Input
+              id="group-description"
+              type="text"
+              value={groupForm.description}
+              onChange={(e) => setGroupForm({ ...groupForm, description: e.target.value })}
+              placeholder="Optional description"
+            />
+          </div>
+
+          <div>
+            <Label>App Access</Label>
+            <p className="text-xs text-muted mb-2">Members of this group will have access to these apps</p>
+            <div className="grid grid-cols-2 gap-2">
+              {["nota", "contacts", "inventory", "projects"].map((appSlug) => (
+                <label key={appSlug} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-input border border-border">
+                  <input
+                    type="checkbox"
+                    checked={groupAppAccess.includes(appSlug)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setGroupAppAccess([...groupAppAccess, appSlug]);
+                      } else {
+                        setGroupAppAccess(groupAppAccess.filter((s) => s !== appSlug));
+                      }
+                    }}
+                    className="rounded border-border"
+                  />
+                  <span className="text-sm capitalize">{appSlug}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            {editingGroup && (
+              <Button
+                type="button"
+                variant="danger"
+                onClick={handleDeleteGroup}
+                disabled={groupLoading}
+              >
+                Delete
+              </Button>
+            )}
+            <div className="flex-1" />
+            <Button type="button" variant="secondary" onClick={() => setShowGroupModal(false)} disabled={groupLoading}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={groupLoading}>
+              {editingGroup ? "Update Group" : "Create Group"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Group Members Modal */}
+      <Modal
+        isOpen={showGroupMembersModal}
+        onClose={() => setShowGroupMembersModal(false)}
+        title={editingGroup ? `${editingGroup.name} - Members` : "Group Members"}
+      >
+        <div className="space-y-4">
+          {groupMembersLoading ? (
+            <div className="text-center py-4 text-muted">Loading members...</div>
+          ) : (
+            <>
+              {/* Current Group Members */}
+              <div>
+                <h3 className="text-sm font-medium mb-2">Current Members</h3>
+                {groupMembers.length === 0 ? (
+                  <p className="text-sm text-muted">No members in this group yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {groupMembers.map((member) => (
+                      <div key={member.id} className="flex items-center justify-between p-2 rounded-lg bg-input border border-border">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center text-xs font-bold text-purple-400">
+                            {member.user.name?.[0]?.toUpperCase() || member.user.email[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">{member.user.name || member.user.email}</p>
+                            <p className="text-xs text-muted">{member.role}</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveFromGroup(member.id)}
+                          className="p-1 text-muted hover:text-error transition-colors"
+                          title="Remove from group"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Add Members */}
+              <div>
+                <h3 className="text-sm font-medium mb-2">Add Members</h3>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {members
+                    .filter((m) => !groupMembers.some((gm) => gm.id === m.id))
+                    .map((member) => (
+                      <div key={member.id} className="flex items-center justify-between p-2 rounded-lg bg-input border border-border">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-xs font-bold text-accent">
+                            {member.user.name?.[0]?.toUpperCase() || member.user.email[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">{member.user.name || member.user.email}</p>
+                            <p className="text-xs text-muted">{member.role}</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleAddToGroup(member.id)}
+                          className="px-2 py-1 text-xs rounded bg-accent/20 text-accent hover:bg-accent/30 transition-colors"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    ))}
+                  {members.filter((m) => !groupMembers.some((gm) => gm.id === m.id)).length === 0 && (
+                    <p className="text-sm text-muted">All members are already in this group.</p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <Button variant="secondary" onClick={() => setShowGroupMembersModal(false)}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -32,6 +32,14 @@ export async function GET(
       );
     }
 
+    // EXTERNAL users cannot access org settings
+    if (membership.role === "EXTERNAL") {
+      return NextResponse.json(
+        { error: "External users cannot access organization settings" },
+        { status: 403 }
+      );
+    }
+
     const entity = await prisma.entity.findUnique({
       where: { id: entityId },
     });
@@ -70,7 +78,7 @@ export async function PATCH(
       },
     });
 
-    if (!membership || membership.role === "MEMBER") {
+    if (!membership || membership.role === "MEMBER" || membership.role === "EXTERNAL") {
       return NextResponse.json(
         { error: "Insufficient permissions" },
         { status: 403 }
@@ -169,7 +177,7 @@ export async function DELETE(
       },
     });
 
-    if (!membership || membership.role === "MEMBER") {
+    if (!membership || membership.role === "MEMBER" || membership.role === "EXTERNAL") {
       return NextResponse.json(
         { error: "Insufficient permissions" },
         { status: 403 }

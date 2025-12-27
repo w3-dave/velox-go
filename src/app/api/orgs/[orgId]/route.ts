@@ -35,6 +35,14 @@ export async function GET(
       return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
 
+    // EXTERNAL users cannot access org settings
+    if (membership.role === "EXTERNAL") {
+      return NextResponse.json(
+        { error: "External users cannot access organization settings" },
+        { status: 403 }
+      );
+    }
+
     return NextResponse.json({
       id: membership.org.id,
       name: membership.org.name,

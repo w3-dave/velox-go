@@ -24,7 +24,7 @@ export async function GET(
       },
     });
 
-    if (!membership || membership.role === "MEMBER") {
+    if (!membership || membership.role === "MEMBER" || membership.role === "EXTERNAL") {
       return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
     }
 
@@ -65,15 +65,25 @@ export async function POST(
       },
     });
 
-    if (!membership || membership.role === "MEMBER") {
+    if (!membership || membership.role === "MEMBER" || membership.role === "EXTERNAL") {
       return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
     }
 
     const body = await request.json();
-    const { email, role = "MEMBER" } = body;
+    const { email, role = "MEMBER", appSlugs } = body;
 
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+
+    // EXTERNAL role requires app access
+    if (role === "EXTERNAL") {
+      if (!appSlugs || !Array.isArray(appSlugs) || appSlugs.length === 0) {
+        return NextResponse.json(
+          { error: "EXTERNAL role requires at least one app access" },
+          { status: 400 }
+        );
+      }
     }
 
     // Check if user is already a member
@@ -115,6 +125,7 @@ export async function POST(
         role,
         orgId,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        appSlugs: role === "EXTERNAL" ? appSlugs.join(",") : null,
       },
     });
 
@@ -149,7 +160,7 @@ export async function DELETE(
       },
     });
 
-    if (!membership || membership.role === "MEMBER") {
+    if (!membership || membership.role === "MEMBER" || membership.role === "EXTERNAL") {
       return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
     }
 
