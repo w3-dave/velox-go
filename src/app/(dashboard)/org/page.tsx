@@ -840,6 +840,9 @@ export default function OrgPage() {
                 </Button>
               )}
             </div>
+            <p className="text-sm text-muted mb-4">
+              Your organization is your billing account and the container for all your team members, groups, and business entities.
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="org-name">Name</Label>
@@ -873,6 +876,9 @@ export default function OrgPage() {
                   Add Entity
                 </Button>
               </div>
+              <p className="text-sm text-muted mb-4">
+                Entities represent your legal business units, subsidiaries, or trading names. Each entity can have its own addresses, VAT numbers, and currency settings for invoicing and documents.
+              </p>
 
               {entities.length === 0 ? (
                 <p className="text-sm text-muted">No entities yet. Create your first entity to get started.</p>
@@ -930,9 +936,12 @@ export default function OrgPage() {
                   </Button>
                 )}
               </div>
+              <p className="text-sm text-muted mb-4">
+                Groups are like departments or teams. Use them to organize members and control which apps they can access. Members inherit app access from all groups they belong to.
+              </p>
 
               {groups.length === 0 ? (
-                <p className="text-sm text-muted">No groups yet. Groups help organize members and manage app access.</p>
+                <p className="text-sm text-muted">No groups yet. Create groups to organize your team and manage app access.</p>
               ) : (
                 <div className="space-y-3">
                   {groups.map((group) => (
@@ -999,6 +1008,9 @@ export default function OrgPage() {
               <h2 className="text-lg font-semibold">Team Members</h2>
               <span className="text-sm text-muted">{members.length} members</span>
             </div>
+            <p className="text-sm text-muted mb-4">
+              <span className="font-medium text-foreground">Owner</span> has full control. <span className="font-medium text-foreground">Admin</span> can manage members and settings. <span className="font-medium text-foreground">Member</span> has standard access. <span className="font-medium text-foreground">External</span> users (suppliers, clients) only see apps they&apos;re granted access to.
+            </p>
 
             <div className="divide-y divide-border">
               {members.map((member) => (
