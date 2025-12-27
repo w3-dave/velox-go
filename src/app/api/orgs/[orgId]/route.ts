@@ -49,7 +49,7 @@ export async function GET(
   }
 }
 
-// PATCH - Update organization (name, slug)
+// PATCH - Update organization (name, slug, type)
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ orgId: string }> }
@@ -77,9 +77,9 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, slug } = body;
+    const { name, slug, type } = body;
 
-    const updateData: { name?: string; slug?: string } = {};
+    const updateData: { name?: string; slug?: string; type?: "INDIVIDUAL" | "BUSINESS" } = {};
 
     if (name) {
       updateData.name = name;
@@ -105,6 +105,16 @@ export async function PATCH(
       }
 
       updateData.slug = slug;
+    }
+
+    if (type) {
+      if (!["INDIVIDUAL", "BUSINESS"].includes(type)) {
+        return NextResponse.json(
+          { error: "Type must be INDIVIDUAL or BUSINESS" },
+          { status: 400 }
+        );
+      }
+      updateData.type = type;
     }
 
     if (Object.keys(updateData).length === 0) {

@@ -70,6 +70,7 @@ export default function OrgPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editName, setEditName] = useState("");
   const [editSlug, setEditSlug] = useState("");
+  const [editType, setEditType] = useState<"INDIVIDUAL" | "BUSINESS">("INDIVIDUAL");
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
 
@@ -158,7 +159,7 @@ export default function OrgPage() {
       const res = await fetch(`/api/orgs/${selectedOrg.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editName, slug: editSlug }),
+        body: JSON.stringify({ name: editName, slug: editSlug, type: editType }),
       });
 
       const data = await res.json();
@@ -169,8 +170,8 @@ export default function OrgPage() {
       }
 
       // Update local state
-      setSelectedOrg({ ...selectedOrg, name: data.name, slug: data.slug });
-      setOrgs(orgs.map((o) => (o.id === selectedOrg.id ? { ...o, name: data.name, slug: data.slug } : o)));
+      setSelectedOrg({ ...selectedOrg, name: data.name, slug: data.slug, type: data.type });
+      setOrgs(orgs.map((o) => (o.id === selectedOrg.id ? { ...o, name: data.name, slug: data.slug, type: data.type } : o)));
       setShowEditModal(false);
       setMessage({ type: "success", text: "Organization updated successfully" });
     } catch {
@@ -284,6 +285,7 @@ export default function OrgPage() {
     if (selectedOrg) {
       setEditName(selectedOrg.name);
       setEditSlug(selectedOrg.slug);
+      setEditType(selectedOrg.type);
       setEditError("");
       setShowEditModal(true);
     }
@@ -546,6 +548,20 @@ export default function OrgPage() {
               required
             />
             <p className="text-xs text-muted mt-1">Lowercase letters, numbers, and hyphens only</p>
+          </div>
+
+          <div>
+            <Label htmlFor="edit-type">Type</Label>
+            <select
+              id="edit-type"
+              value={editType}
+              onChange={(e) => setEditType(e.target.value as "INDIVIDUAL" | "BUSINESS")}
+              className="w-full px-4 py-2 rounded-lg bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-accent mt-1.5"
+            >
+              <option value="INDIVIDUAL">Individual</option>
+              <option value="BUSINESS">Business</option>
+            </select>
+            <p className="text-xs text-muted mt-1">Individual accounts cannot be deleted, only the user account</p>
           </div>
 
           <div className="flex gap-3 pt-2">
